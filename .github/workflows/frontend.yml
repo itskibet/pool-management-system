@@ -2,9 +2,13 @@ name: Frontend CI
 
 on:
   push:
-    paths: ['frontend/**']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
   pull_request:
-    paths: ['frontend/**']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
 
 jobs:
   build:
@@ -12,13 +16,21 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Verify frontend files
+        run: |
+          test -f package.json
+          echo "Frontend package.json found."
 
       - name: Install dependencies
         run: npm install
