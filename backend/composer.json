@@ -1,0 +1,16 @@
+{
+  "name": "itskibet/pool-management-backend",
+  "description": "PHP backend for pool table payments and MQTT integration",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "vlucas/phpdotenv": "^5.6",
+    "guzzlehttp/guzzle": "^7.9",
+    "php-mqtt/client": "^2.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "PoolManagement\\": "src/"
+    }
+  }
+}
