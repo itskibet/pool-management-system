@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           package-manager-cache: false
@@ -31,6 +31,7 @@ jobs:
         run: |
           test -f package.json
           echo "Frontend package.json found."
+          echo "npm cache disabled for CI because frontend/package-lock.json is not committed."
 
       - name: Install dependencies
         run: npm install
