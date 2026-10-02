@@ -1,7 +1,7 @@
 {
   "name": "pool-management-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "latest",
-  "react": "latest",
-  "react-dom": "latest"
+    "react": "latest",
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "latest",
