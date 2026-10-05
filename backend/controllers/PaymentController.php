@@ -26,52 +26,51 @@ function createPendingPayment(): never
     }
 
     $tableId = filter_var($input['table_id'] ?? null, FILTER_VALIDATE_INT);
-    $method = strtoupper((string) ($input['payment_method'] ?? ''));
+    $method = strtoupper(trim((string) ($input['payment_method'] ?? '')));
     $phone = isset($input['phone_number']) ? trim((string) $input['phone_number']) : null;
 
     if (!$tableId || !in_array($method, ['QR', 'MANUAL_MPESA', 'ASSISTED'], true)) {
         jsonResponse(['error' => 'table_id and a valid payment_method are required'], 422);
     }
 
-    $stmt = db()->prepare(
-        'SELECT id, table_number, price, status FROM tables_pool WHERE id = ?'
-    );
-    $stmt->execute([$tableId]);
-    $table = $stmt->fetch();
-
-    if (!$table) {
-        jsonResponse(['error' => 'Table not found'], 404);
-    }
-
-    if ($table['status'] !== 'available') {
-        jsonResponse(['error' => 'Table is not available for a new payment session'], 409);
+    if ($phone !== null && $phone !== '' && !preg_match('/^\+?\d{9,15}$/', preg_replace('/[\s-]/', '', $phone))) {
+        jsonResponse(['error' => 'phone_number must be a valid international phone number'], 422);
     }
 
     $pdo = db();
-    $sessionId = generateUuidV4();
-    $reference = sprintf(
-        '%s-%s-%s',
-        env('MPESA_ACCOUNT_REFERENCE_PREFIX', 'TABLE'),
-        $table['table_number'],
-        strtoupper(bin2hex(random_bytes(4)))
-    );
-
     $pdo->beginTransaction();
 
     try {
+        $stmt = $pdo->prepare(
+            'SELECT id, table_number, price, status FROM tables_pool WHERE id = ? FOR UPDATE'
+        );
+        $stmt->execute([$tableId]);
+        $table = $stmt->fetch();
+
+        if (!$table) {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Table not found'], 404);
+        }
+
+        if ($table['status'] !== 'available') {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Table is not available for a new payment session'], 409);
+        }
+
+        $sessionId = generateUuidV4();
+        $reference = sprintf(
+            '%s-%s-%s',
+            env('MPESA_ACCOUNT_REFERENCE_PREFIX', 'TABLE'),
+            $table['table_number'],
+            strtoupper(bin2hex(random_bytes(4)))
+        );
+
         $stmt = $pdo->prepare(
             'INSERT INTO payment_sessions
              (id, table_id, amount, payment_method, phone_number, account_reference, status, expires_at)
              VALUES (?, ?, ?, ?, ?, ?, "pending", DATE_ADD(NOW(), INTERVAL 15 MINUTE))'
         );
-        $stmt->execute([
-            $sessionId,
-            $table['id'],
-            $table['price'],
-            $method,
-            $phone,
-            $reference,
-        ]);
+        $stmt->execute([$sessionId, $table['id'], $table['price'], $method, $phone, $reference]);
 
         $stmt = $pdo->prepare(
             'UPDATE tables_pool SET status = "payment_pending" WHERE id = ? AND status = "available"'
@@ -84,7 +83,9 @@ function createPendingPayment(): never
 
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 
@@ -98,6 +99,7 @@ function createPendingPayment(): never
             'payment_method' => $method,
             'account_reference' => $reference,
             'status' => 'pending',
+            'expires_at_minutes' => 15,
         ],
     ], 201);
 }
