@@ -6,8 +6,9 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/response.php';
 
 /**
- * Handles Safaricom C2B confirmation, STK Push callbacks, and the simplified
- * development callback shape used by automated tests.
+ * Handles Safaricom C2B confirmation and the simplified development callback
+ * shape used by automated tests. Both manual SIM Toolkit payments and Dynamic
+ * QR payments can settle through the C2B confirmation flow.
  */
 function handleMpesaCallback(): never
 {
@@ -16,10 +17,6 @@ function handleMpesaCallback(): never
 
     if ($transaction === null) {
         jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'Unsupported callback payload'], 422);
-    }
-
-    if ($transaction['successful'] === false) {
-        jsonResponse(['ResultCode' => 0, 'ResultDesc' => 'Accepted'], 200);
     }
 
     $pdo = db();
@@ -40,7 +37,6 @@ function handleMpesaCallback(): never
 
         if (!$session) {
             $pdo->rollBack();
-            // A callback can legitimately arrive after a session expired or was already consumed.
             jsonResponse(['ResultCode' => 0, 'ResultDesc' => 'Accepted; no matching pending session'], 200);
         }
 
@@ -75,8 +71,8 @@ function handleMpesaCallback(): never
             $transaction['phone_number'],
             $transaction['amount'],
             $transaction['account_reference'],
-            $transaction['merchant_request_id'],
-            $transaction['checkout_request_id'],
+            null,
+            null,
             $transaction['receipt'],
             $transaction['transaction_id'],
             'confirmed',
@@ -153,7 +149,11 @@ function handleMpesaValidation(): never
     $stmt->execute([$transaction['account_reference'], 'pending']);
     $session = $stmt->fetch();
 
-    if (!$session || abs((float) $session['amount'] - $transaction['amount']) > 0.00001) {
+    if (!$session) {
+        jsonResponse(['ResultCode' => 'C2B00012', 'ResultDesc' => 'Rejected'], 200);
+    }
+
+    if (abs((float) $session['amount'] - $transaction['amount']) > 0.00001) {
         jsonResponse(['ResultCode' => 'C2B00013', 'ResultDesc' => 'Rejected'], 200);
     }
 
@@ -180,59 +180,16 @@ function extractMpesaTransaction(array $payload): ?array
             'receipt' => trim((string) $payload['receipt']),
             'transaction_id' => nullableString($payload['transaction_id'] ?? null),
             'phone_number' => nullableString($payload['phone_number'] ?? null),
-            'merchant_request_id' => nullableString($payload['merchant_request_id'] ?? null),
-            'checkout_request_id' => nullableString($payload['checkout_request_id'] ?? null),
-            'successful' => true,
         ];
     }
 
     // Safaricom C2B confirmation payload.
     $c2b = extractC2bTransaction($payload);
-    if ($c2b !== null) {
-        return [
-            ...$c2b,
-            'transaction_id' => $c2b['transaction_id'],
-            'merchant_request_id' => null,
-            'checkout_request_id' => null,
-            'successful' => true,
-        ];
-    }
-
-    // Safaricom STK Push callback payload.
-    $callback = $payload['Body']['stkCallback'] ?? null;
-    if (!is_array($callback)) {
+    if ($c2b === null) {
         return null;
     }
 
-    $resultCode = (int) ($callback['ResultCode'] ?? 1);
-    $metadata = [];
-    foreach (($callback['CallbackMetadata']['Item'] ?? []) as $item) {
-        if (isset($item['Name'])) {
-            $metadata[(string) $item['Name']] = $item['Value'] ?? null;
-        }
-    }
-
-    $amount = isset($metadata['Amount']) ? (float) $metadata['Amount'] : null;
-    $receipt = isset($metadata['MpesaReceiptNumber']) ? trim((string) $metadata['MpesaReceiptNumber']) : '';
-    $phone = isset($metadata['PhoneNumber']) ? trim((string) $metadata['PhoneNumber']) : null;
-    $checkoutRequestId = nullableString($callback['CheckoutRequestID'] ?? null);
-
-    // STK Push uses CheckoutRequestID to identify the initiated payment, while
-    // the account reference is supplied by our pending-session lookup below.
-    if ($amount === null || $receipt === '') {
-        return [
-            'account_reference' => '',
-            'amount' => $amount ?? 0.0,
-            'receipt' => $receipt,
-            'transaction_id' => $receipt !== '' ? $receipt : null,
-            'phone_number' => $phone,
-            'merchant_request_id' => nullableString($callback['MerchantRequestID'] ?? null),
-            'checkout_request_id' => $checkoutRequestId,
-            'successful' => false,
-        ];
-    }
-
-    return null;
+    return $c2b;
 }
 
 function extractC2bTransaction(array $payload): ?array
@@ -242,15 +199,16 @@ function extractC2bTransaction(array $payload): ?array
     }
 
     $reference = trim((string) $payload['BillRefNumber']);
-    if ($reference === '') {
+    $receipt = trim((string) $payload['TransID']);
+    if ($reference === '' || $receipt === '') {
         return null;
     }
 
     return [
         'account_reference' => $reference,
         'amount' => (float) $payload['TransAmount'],
-        'receipt' => trim((string) $payload['TransID']),
-        'transaction_id' => trim((string) $payload['TransID']),
+        'receipt' => $receipt,
+        'transaction_id' => $receipt,
         'phone_number' => nullableString($payload['MSISDN'] ?? null),
     ];
 }
