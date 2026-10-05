@@ -9,7 +9,7 @@ function listTables(): never
 {
     $rows = db()->query(
         'SELECT id, table_number, name, price, status, mqtt_topic, created_at, updated_at
-         FROM tables ORDER BY id ASC'
+         FROM tables_pool ORDER BY id ASC'
     )->fetchAll();
 
     jsonResponse(['data' => $rows]);
@@ -19,7 +19,7 @@ function getTable(int $id): never
 {
     $stmt = db()->prepare(
         'SELECT id, table_number, name, price, status, mqtt_topic, created_at, updated_at
-         FROM tables WHERE id = ?'
+         FROM tables_pool WHERE id = ?'
     );
     $stmt->execute([$id]);
     $table = $stmt->fetch();
