@@ -5,8 +5,55 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/response.php';
 
+function cleanupExpiredPaymentSessions(): void
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT ps.id, ps.table_id
+             FROM payment_sessions ps
+             INNER JOIN tables_pool t ON t.id = ps.table_id
+             WHERE ps.status = ? AND ps.expires_at IS NOT NULL AND ps.expires_at < NOW()
+             FOR UPDATE'
+        );
+        $stmt->execute(['pending']);
+        $sessions = $stmt->fetchAll();
+
+        if ($sessions === []) {
+            $pdo->commit();
+            return;
+        }
+
+        $expire = $pdo->prepare('UPDATE payment_sessions SET status = ? WHERE id = ? AND status = ?');
+        $release = $pdo->prepare('UPDATE tables_pool SET status = ? WHERE id = ? AND status = ?');
+        $hasOtherPending = $pdo->prepare(
+            'SELECT COUNT(*) FROM payment_sessions
+             WHERE table_id = ? AND status = ? AND (expires_at IS NULL OR expires_at >= NOW())'
+        );
+
+        foreach ($sessions as $session) {
+            $expire->execute(['expired', $session['id'], 'pending']);
+            $hasOtherPending->execute([$session['table_id'], 'pending']);
+            if ((int) $hasOtherPending->fetchColumn() === 0) {
+                $release->execute(['available', $session['table_id'], 'payment_pending']);
+            }
+        }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
 function listPayments(): never
 {
+    cleanupExpiredPaymentSessions();
+
     $sql = 'SELECT p.id, p.table_id, t.table_number, t.name AS table_name,
                    p.payment_method, p.phone_number, p.amount, p.account_reference,
                    p.status, p.mpesa_receipt, p.created_at, p.paid_at
@@ -19,6 +66,8 @@ function listPayments(): never
 
 function createPendingPayment(): never
 {
+    cleanupExpiredPaymentSessions();
+
     $input = json_decode(file_get_contents('php://input'), true);
 
     if (!is_array($input)) {
@@ -58,24 +107,19 @@ function createPendingPayment(): never
         }
 
         $sessionId = generateUuidV4();
-        $reference = sprintf(
-            '%s-%s-%s',
-            env('MPESA_ACCOUNT_REFERENCE_PREFIX', 'TABLE'),
-            $table['table_number'],
-            strtoupper(bin2hex(random_bytes(4)))
-        );
+        $reference = generatePaymentReference((string) $table['table_number']);
 
         $stmt = $pdo->prepare(
             'INSERT INTO payment_sessions
              (id, table_id, amount, payment_method, phone_number, account_reference, status, expires_at)
-             VALUES (?, ?, ?, ?, ?, ?, "pending", DATE_ADD(NOW(), INTERVAL 15 MINUTE))'
+             VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))'
         );
-        $stmt->execute([$sessionId, $table['id'], $table['price'], $method, $phone, $reference]);
+        $stmt->execute([$sessionId, $table['id'], $table['price'], $method, $phone, $reference, 'pending']);
 
         $stmt = $pdo->prepare(
-            'UPDATE tables_pool SET status = "payment_pending" WHERE id = ? AND status = "available"'
+            'UPDATE tables_pool SET status = ? WHERE id = ? AND status = ?'
         );
-        $stmt->execute([$table['id']]);
+        $stmt->execute(['payment_pending', $table['id'], 'available']);
 
         if ($stmt->rowCount() !== 1) {
             throw new RuntimeException('Table became unavailable while creating payment session');
@@ -102,6 +146,19 @@ function createPendingPayment(): never
             'expires_at_minutes' => 15,
         ],
     ], 201);
+}
+
+function generatePaymentReference(string $tableNumber): string
+{
+    $tableNumber = strtoupper(preg_replace('/[^A-Z0-9]/', '', $tableNumber));
+    $reference = $tableNumber . '-' . strtoupper(bin2hex(random_bytes(4)));
+
+    // Safaricom C2B PayBill account references support up to 20 characters.
+    if ($tableNumber === '' || strlen($reference) > 20) {
+        throw new RuntimeException('Table number is too long for an M-Pesa account reference');
+    }
+
+    return $reference;
 }
 
 function generateUuidV4(): string
