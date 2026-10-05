@@ -60,12 +60,12 @@ if ($method === 'GET' && preg_match('#^/tables/(\d+)$#', $path, $matches)) {
     getTable((int) $matches[1]);
 }
 
-if ($method === 'GET' && $path === '/payments') {
-    listPayments();
-}
-
 if ($method === 'POST' && $path === '/payments') {
     createPendingPayment();
+}
+
+if ($method === 'GET' && preg_match('#^/payments/session/([0-9a-fA-F-]{36})$#', $path, $matches)) {
+    getPaymentSessionStatus($matches[1]);
 }
 
 if ($method === 'POST' && $path === '/mpesa/callback') {
