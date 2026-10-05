@@ -9,6 +9,14 @@ require_once __DIR__ . '/../controllers/TableController.php';
 require_once __DIR__ . '/../controllers/GameController.php';
 require_once __DIR__ . '/../controllers/MpesaController.php';
 
+set_exception_handler(static function (Throwable $e): never {
+    error_log((string) $e);
+    $debug = filter_var(env('APP_DEBUG', 'false'), FILTER_VALIDATE_BOOL);
+    jsonResponse([
+        'error' => $debug ? $e->getMessage() : 'Internal server error',
+    ], 500);
+});
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 
