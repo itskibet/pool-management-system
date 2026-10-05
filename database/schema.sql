@@ -79,9 +79,10 @@ CREATE TABLE IF NOT EXISTS mqtt_commands (
   game_id BIGINT UNSIGNED NULL,
   topic VARCHAR(255) NOT NULL,
   command VARCHAR(100) NOT NULL,
-  status ENUM('queued','published','failed') NOT NULL DEFAULT 'queued',
+  status ENUM('queued','processing','published','failed') NOT NULL DEFAULT 'queued',
   published_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_commands_table FOREIGN KEY (table_id) REFERENCES tables_pool(id),
   CONSTRAINT fk_commands_payment FOREIGN KEY (payment_id) REFERENCES payments(id),
   CONSTRAINT fk_commands_game FOREIGN KEY (game_id) REFERENCES games(id)
