@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/response.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../controllers/TableController.php';
 require_once __DIR__ . '/../controllers/PaymentController.php';
 require_once __DIR__ . '/../controllers/GameController.php';
+require_once __DIR__ . '/../controllers/MpesaController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
@@ -18,19 +20,9 @@ $path = $path === '' ? '/' : $path;
 if ($method === 'GET' && $path === '/health') {
     try {
         db()->query('SELECT 1');
-        jsonResponse([
-            'name' => 'Pool Management API',
-            'status' => 'ok',
-            'version' => '0.2.0',
-            'database' => 'connected',
-        ]);
+        jsonResponse(['name' => 'Pool Management API', 'status' => 'ok', 'version' => '0.3.0', 'database' => 'connected']);
     } catch (Throwable $e) {
-        jsonResponse([
-            'name' => 'Pool Management API',
-            'status' => 'error',
-            'version' => '0.2.0',
-            'database' => 'disconnected',
-        ], 503);
+        jsonResponse(['name' => 'Pool Management API', 'status' => 'error', 'version' => '0.3.0', 'database' => 'disconnected'], 503);
     }
 }
 
@@ -48,6 +40,10 @@ if ($method === 'GET' && $path === '/payments') {
 
 if ($method === 'POST' && $path === '/payments') {
     createPendingPayment();
+}
+
+if ($method === 'POST' && $path === '/mpesa/callback') {
+    handleMpesaCallback();
 }
 
 if ($method === 'GET' && $path === '/games') {
