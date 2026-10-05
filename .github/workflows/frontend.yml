@@ -12,6 +12,7 @@ on:
 
 jobs:
   build:
+    name: Frontend lint and build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,13 +29,13 @@ jobs:
           package-manager-cache: false
 
       - name: Verify frontend files
-        run: |
-          test -f package.json
-          echo "Frontend package.json found."
-          echo "npm cache disabled for CI because frontend/package-lock.json is not committed."
+        run: test -f package.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
+
+      - name: Lint frontend
+        run: npm run lint
 
       - name: Build frontend
         run: npm run build

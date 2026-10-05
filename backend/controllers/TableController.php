@@ -7,9 +7,11 @@ require_once __DIR__ . '/../config/response.php';
 
 function listTables(): never
 {
+    cleanupExpiredPaymentSessions();
+
     $rows = db()->query(
         'SELECT id, table_number, name, price, status, mqtt_topic, created_at, updated_at
-         FROM tables ORDER BY id ASC'
+         FROM tables_pool ORDER BY id ASC'
     )->fetchAll();
 
     jsonResponse(['data' => $rows]);
@@ -17,9 +19,11 @@ function listTables(): never
 
 function getTable(int $id): never
 {
+    cleanupExpiredPaymentSessions();
+
     $stmt = db()->prepare(
         'SELECT id, table_number, name, price, status, mqtt_topic, created_at, updated_at
-         FROM tables WHERE id = ?'
+         FROM tables_pool WHERE id = ?'
     );
     $stmt->execute([$id]);
     $table = $stmt->fetch();
