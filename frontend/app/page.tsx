@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type PoolTable = {
   id: number;
@@ -11,14 +12,25 @@ type PoolTable = {
   mqtt_topic: string;
 };
 
-const navItems = [
-  ['Overview', '⌂'],
-  ['Tables', '▦'],
-  ['Payments', '↗'],
-  ['Games', '◷'],
-  ['Reports', '▥'],
-  ['Settings', '⚙'],
-];
+type Payment = {
+  id: number;
+  table_id: number;
+  table_number?: string;
+  table_name?: string;
+  amount: string;
+  status: string;
+  transaction_id?: string | null;
+  mpesa_receipt?: string | null;
+  created_at?: string;
+  paid_at?: string | null;
+};
+
+type Game = {
+  id: number;
+  table_id: number;
+  status: string;
+  started_at?: string | null;
+};
 
 const statusLabel: Record<string, string> = {
   available: 'Available',
@@ -27,12 +39,24 @@ const statusLabel: Record<string, string> = {
   offline: 'Offline',
 };
 
+function isToday(value?: string | null) {
+  if (!value) return false;
+  const date = new Date(value.replace(' ', 'T'));
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+}
+
 export default function Home() {
   const [tables, setTables] = useState<PoolTable[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [apiHealthy, setApiHealthy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadDashboard = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       setError('API URL is not configured.');
@@ -40,19 +64,53 @@ export default function Home() {
       return;
     }
 
-    fetch(`${apiUrl}/tables`)
-      .then((response) => {
-        if (!response.ok) throw new Error('Failed to fetch tables');
-        return response.json();
-      })
-      .then((result) => setTables(result.data ?? []))
-      .catch(() => setError('Unable to connect to the backend.'))
-      .finally(() => setLoading(false));
+    try {
+      const [tablesResponse, paymentsResponse, gamesResponse, healthResponse] = await Promise.all([
+        fetch(`${apiUrl}/tables`, { cache: 'no-store' }),
+        fetch(`${apiUrl}/payments`, { cache: 'no-store' }),
+        fetch(`${apiUrl}/games`, { cache: 'no-store' }),
+        fetch(`${apiUrl}/health`, { cache: 'no-store' }),
+      ]);
+
+      if (!tablesResponse.ok) throw new Error('Failed to fetch tables');
+
+      const [tableResult, paymentResult, gameResult] = await Promise.all([
+        tablesResponse.json(),
+        paymentsResponse.ok ? paymentsResponse.json() : { data: [] },
+        gamesResponse.ok ? gamesResponse.json() : { data: [] },
+      ]);
+
+      setTables(tableResult.data ?? []);
+      setPayments(paymentResult.data ?? []);
+      setGames(gameResult.data ?? []);
+      setApiHealthy(healthResponse.ok);
+      setError('');
+    } catch {
+      setApiHealthy(false);
+      setError('Unable to connect to the backend. Check that the API is running.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+    const timer = window.setInterval(loadDashboard, 10000);
+    return () => window.clearInterval(timer);
+  }, [loadDashboard]);
 
   const available = useMemo(() => tables.filter((table) => table.status === 'available').length, [tables]);
   const playing = useMemo(() => tables.filter((table) => table.status === 'playing').length, [tables]);
   const pending = useMemo(() => tables.filter((table) => table.status === 'payment_pending').length, [tables]);
+  const todayPayments = useMemo(
+    () => payments.filter((payment) => payment.status === 'confirmed' && isToday(payment.paid_at ?? payment.created_at)),
+    [payments],
+  );
+  const revenue = useMemo(
+    () => todayPayments.reduce((total, payment) => total + Number(payment.amount || 0), 0),
+    [todayPayments],
+  );
+  const recentPayments = payments.slice(0, 5);
 
   return (
     <main className="app-shell">
@@ -63,21 +121,21 @@ export default function Home() {
         </div>
         <div className="nav-label">MAIN MENU</div>
         <nav>
-          {navItems.map(([label, icon], index) => (
-            <button className={`nav-item ${index === 0 ? 'active' : ''}`} key={label}>
-              <span className="nav-icon">{icon}</span><span>{label}</span>
-            </button>
-          ))}
+          <Link className="nav-item active" href="/"><span className="nav-icon">⌂</span><span>Overview</span></Link>
+          <a className="nav-item" href="#tables"><span className="nav-icon">▦</span><span>Tables</span></a>
+          <a className="nav-item" href="#payments"><span className="nav-icon">↗</span><span>Payments</span></a>
+          <a className="nav-item" href="#games"><span className="nav-icon">◷</span><span>Games</span></a>
+          <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
         </nav>
         <div className="sidebar-card">
           <span className="sidebar-card-kicker">QUICK STATUS</span>
           <strong>{available} tables ready</strong>
-          <p>System is operating normally.</p>
+          <p>{apiHealthy ? 'Live data is updating automatically.' : 'Backend connection needs attention.'}</p>
           <div className="mini-progress"><span style={{ width: `${tables.length ? (available / tables.length) * 100 : 0}%` }} /></div>
         </div>
         <div className="sidebar-footer">
-          <div className="connection"><span className="pulse" /> API connected</div>
-          <div className="user-card"><div className="avatar">A</div><div><strong>Administrator</strong><span>Control panel</span></div><span className="dots">•••</span></div>
+          <div className="connection"><span className={`pulse ${apiHealthy ? '' : 'offline'}`} /> {apiHealthy ? 'API connected' : 'API offline'}</div>
+          <div className="user-card"><div className="avatar">A</div><div><strong>Administrator</strong><span>Local control panel</span></div><span className="dots">•••</span></div>
         </div>
       </aside>
 
@@ -86,25 +144,24 @@ export default function Home() {
           <div>
             <div className="breadcrumb">POOLPILOT <span>/</span> OVERVIEW</div>
             <h1>Pool hall overview</h1>
-            <p className="muted">Monitor tables, sessions and payments from one place.</p>
+            <p className="muted">Monitor tables, sessions and verified payments from one place.</p>
           </div>
           <div className="top-actions">
-            <button className="icon-button" aria-label="Search">⌕</button>
-            <button className="icon-button notification" aria-label="Notifications">♧<i /></button>
-            <button className="primary-button">+ New session</button>
+            <button className="icon-button" onClick={loadDashboard} aria-label="Refresh dashboard">↻</button>
+            <button className="icon-button notification" aria-label="Notifications">♧</button>
           </div>
         </header>
 
         <section className="stats-grid">
           <div className="stat-card"><div className="stat-icon blue">▦</div><div><span>Total tables</span><strong>{tables.length}</strong><small>Registered in system</small></div><em>Live</em></div>
           <div className="stat-card"><div className="stat-icon green">✓</div><div><span>Available</span><strong>{available}</strong><small>Ready for customers</small></div><em className="positive">Ready</em></div>
-          <div className="stat-card"><div className="stat-icon amber">◷</div><div><span>Active sessions</span><strong>{playing}</strong><small>{pending} awaiting payment</small></div><em className="neutral">Today</em></div>
-          <div className="stat-card revenue"><div className="stat-icon purple">KSh</div><div><span>Today's revenue</span><strong>KSh 0</strong><small>Confirmed payments</small></div><em className="neutral">KES</em></div>
+          <div className="stat-card"><div className="stat-icon amber">◷</div><div><span>Active sessions</span><strong>{playing}</strong><small>{pending} awaiting payment</small></div><em className="neutral">Live</em></div>
+          <div className="stat-card revenue"><div className="stat-icon purple">KSh</div><div><span>Today's revenue</span><strong>KSh {revenue.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><small>{todayPayments.length} confirmed payments</small></div><em className="neutral">KES</em></div>
         </section>
 
-        <section className="section-heading">
-          <div><div className="section-title-row"><h2>Tables</h2><span className="live-dot">Live</span></div><p>Real-time table availability from the management API.</p></div>
-          <button className="ghost-button">View all tables <span>→</span></button>
+        <section className="section-heading" id="tables">
+          <div><div className="section-title-row"><h2>Tables</h2><span className="live-dot">Live</span></div><p>Table status refreshes automatically every 10 seconds.</p></div>
+          <button className="ghost-button" onClick={loadDashboard}>Refresh <span>↻</span></button>
         </section>
 
         {error && <div className="alert">{error}</div>}
@@ -117,9 +174,9 @@ export default function Home() {
                 <div className="table-top"><span className="table-number">{table.table_number.replace('_', ' ')}</span><span className={`status ${table.status}`}>{statusLabel[table.status] ?? table.status.replace('_', ' ')}</span></div>
                 <div className="table-visual">
                   <div className="pool-icon"><span /><span /><span /><span /><span /></div>
-                  <div className="table-caption"><strong>{table.name}</strong><p>Table controller ready</p></div>
+                  <div className="table-caption"><strong>{table.name}</strong><p>Controller: {table.mqtt_topic}</p></div>
                 </div>
-                <div className="table-bottom"><div><span>SESSION RATE</span><strong>KSh {table.price}</strong><small>per session</small></div><a className="manage-button" href={`/tables/${table.id}`}>Open <span>→</span></a></div>
+                <div className="table-bottom"><div><span>SESSION RATE</span><strong>KSh {table.price}</strong><small>one game / session</small></div><Link className="manage-button" href={`/tables/${table.id}`}>Open <span>→</span></Link></div>
               </article>
             ))}
           </section>
@@ -127,12 +184,34 @@ export default function Home() {
 
         {!loading && !error && tables.length === 0 && <div className="loading-card">No tables have been registered yet.</div>}
 
-        <section className="lower-grid">
-          <div className="panel"><div className="panel-heading"><div><h2>Recent payments</h2><p>Payment activity from your hall.</p></div><span className="panel-link">View payments →</span></div><div className="empty-state"><div className="empty-icon">KSh</div><strong>No recent payments</strong><span>Confirmed M-Pesa transactions will appear here.</span></div></div>
-          <div className="panel"><div className="panel-heading"><div><h2>System health</h2><p>Connection status of core services.</p></div><span className="healthy-badge"><i /> Healthy</span></div><div className="service-row"><span><i className="ok" />PHP API</span><b>Connected</b></div><div className="service-row"><span><i className="ok" />MySQL database</span><b>Connected</b></div><div className="service-row"><span><i className="waiting" />M-Pesa</span><b className="dim">Not configured</b></div><div className="service-row"><span><i className="waiting" />MQTT</span><b className="dim">Not configured</b></div></div>
+        <section className="lower-grid" id="payments">
+          <div className="panel">
+            <div className="panel-heading"><div><h2>Recent payments</h2><p>Verified payment activity from your hall.</p></div><span className="panel-link">{todayPayments.length} today</span></div>
+            {recentPayments.length === 0 ? (
+              <div className="empty-state"><div className="empty-icon">KSh</div><strong>No recent payments</strong><span>Confirmed M-Pesa transactions will appear here.</span></div>
+            ) : (
+              <div className="payment-list">
+                {recentPayments.map((payment) => (
+                  <div className="payment-row" key={payment.id}>
+                    <div className="payment-icon">KSh</div>
+                    <div className="payment-info"><strong>{payment.table_name ?? payment.table_number ?? `Table #${payment.table_id}`}</strong><span>{payment.transaction_id ?? payment.mpesa_receipt ?? 'Pending reference'} · {payment.status}</span></div>
+                    <div className="payment-amount"><strong>KSh {Number(payment.amount).toFixed(2)}</strong><span>{payment.paid_at ?? payment.created_at ?? ''}</span></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="panel" id="health">
+            <div className="panel-heading"><div><h2>System health</h2><p>Live status of available services.</p></div><span className={`healthy-badge ${apiHealthy ? '' : 'dim'}`}><i /> {apiHealthy ? 'Healthy' : 'Offline'}</span></div>
+            <div className="service-row"><span><i className={apiHealthy ? 'ok' : 'waiting'} />PHP API</span><b className={apiHealthy ? '' : 'dim'}>{apiHealthy ? 'Connected' : 'Unavailable'}</b></div>
+            <div className="service-row"><span><i className="waiting" />M-Pesa</span><b className="dim">Integration pending</b></div>
+            <div className="service-row"><span><i className="waiting" />MQTT</span><b className="dim">Integration pending</b></div>
+            <div className="service-row" id="games"><span><i className="ok" />Sessions</span><b>{games.filter((game) => game.status === 'active').length} active</b></div>
+          </div>
         </section>
 
-        <footer className="dashboard-footer"><span>PoolPilot Management</span><span>Backend API v0.2.0 • Local development</span></footer>
+        <footer className="dashboard-footer"><span>PoolPilot Management</span><span>API v0.3.1 · Local development</span></footer>
       </section>
     </main>
   );
