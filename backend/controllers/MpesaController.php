@@ -25,21 +25,24 @@ function mpesaC2BConfirmation(): never
         jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'Missing required transaction fields'], 422);
     }
 
-    $organizationId = currentOrganizationId();
+    if ($businessShortCode === '') {
+        jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'BusinessShortCode is required to identify the client'], 422);
+    }
 
     $settingsStmt = db()->prepare(
-        'SELECT paybill_number FROM mpesa_settings WHERE organization_id = ? LIMIT 1'
+        'SELECT organization_id, paybill_number
+         FROM mpesa_settings
+         WHERE paybill_number = ? AND payment_type = "paybill"
+         LIMIT 1'
     );
-    $settingsStmt->execute([$organizationId]);
+    $settingsStmt->execute([$businessShortCode]);
     $settings = $settingsStmt->fetch();
 
     if (!$settings || $settings['paybill_number'] === 'CHANGE_ME') {
-        jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'Paybill is not configured'], 422);
+        jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'Payment was sent to an unregistered Paybill'], 422);
     }
 
-    if ($businessShortCode !== '' && $businessShortCode !== $settings['paybill_number']) {
-        jsonResponse(['ResultCode' => 1, 'ResultDesc' => 'Payment was sent to an unexpected Paybill'], 422);
-    }
+    $organizationId = (int) $settings['organization_id'];
 
     $duplicateStmt = db()->prepare(
         'SELECT id FROM payments WHERE transaction_id = ? LIMIT 1'
