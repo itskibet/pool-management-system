@@ -119,7 +119,7 @@ export default function Home() {
                   <div className="pool-icon"><span /><span /><span /><span /><span /></div>
                   <div className="table-caption"><strong>{table.name}</strong><p>Table controller ready</p></div>
                 </div>
-                <div className="table-bottom"><div><span>SESSION RATE</span><strong>KSh {table.price}</strong><small>per session</small></div><button className="manage-button">Open <span>→</span></button></div>
+                <div className="table-bottom"><div><span>SESSION RATE</span><strong>KSh {table.price}</strong><small>per session</small></div><a className="manage-button" href={`/tables/${table.id}`}>Open <span>→</span></a></div>
               </article>
             ))}
           </section>
