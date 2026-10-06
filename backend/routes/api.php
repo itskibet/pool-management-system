@@ -8,7 +8,6 @@ require_once __DIR__ . '/../controllers/PaymentController.php';
 require_once __DIR__ . '/../controllers/GameController.php';
 require_once __DIR__ . '/../controllers/PaymentSettingsController.php';
 require_once __DIR__ . '/../controllers/MpesaController.php';
-require_once __DIR__ . '/../controllers/UserController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
@@ -65,9 +64,6 @@ if ($method === 'GET' && $path === '/payment-settings') {
     getPaymentSettings();
 }
 
-if ($method === 'GET' && $path === '/users') {
-    listUsers();
-}
 
 if ($method === 'POST' && $path === '/mpesa/c2b/confirmation') {
     mpesaC2BConfirmation();
