@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-$allowedOrigin = getenv('FRONTEND_URL') ?: 'http://localhost:3000';
+require_once __DIR__ . '/../config/env.php';
+loadEnv(dirname(__DIR__) . '/.env');
+
+$allowedOrigin = env('FRONTEND_URL', 'http://localhost:3000') ?? 'http://localhost:3000';
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if ($requestOrigin !== '' && hash_equals($allowedOrigin, $requestOrigin)) {
