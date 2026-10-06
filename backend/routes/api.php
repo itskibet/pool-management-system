@@ -23,50 +23,26 @@ if ($method === 'GET' && $path === '/health') {
         jsonResponse([
             'name' => 'Pool Management API',
             'status' => 'ok',
-            'version' => '0.3.0',
+            'version' => '0.3.1',
             'database' => 'connected',
         ]);
     } catch (Throwable $e) {
         jsonResponse([
             'name' => 'Pool Management API',
             'status' => 'error',
-            'version' => '0.3.0',
+            'version' => '0.3.1',
             'database' => 'disconnected',
         ], 503);
     }
 }
 
-if ($method === 'GET' && $path === '/tables') {
-    listTables();
-}
-
-if ($method === 'GET' && preg_match('#^/tables/(\d+)$#', $path, $matches)) {
-    getTable((int) $matches[1]);
-}
-
-if ($method === 'GET' && $path === '/payments') {
-    listPayments();
-}
-
-if ($method === 'POST' && $path === '/payments') {
-    createPendingPayment();
-}
-
-if ($method === 'GET' && $path === '/games') {
-    listGames();
-}
-
-if ($method === 'POST' && preg_match('#^/games/(\d+)/end$#', $path, $matches)) {
-    endGame((int) $matches[1]);
-}
-
-if ($method === 'GET' && $path === '/payment-settings') {
-    getPaymentSettings();
-}
-
-
-if ($method === 'POST' && $path === '/mpesa/c2b/confirmation') {
-    mpesaC2BConfirmation();
-}
+if ($method === 'GET' && $path === '/tables') listTables();
+if ($method === 'GET' && preg_match('#^/tables/(\d+)$#', $path, $matches)) getTable((int) $matches[1]);
+if ($method === 'GET' && $path === '/payments') listPayments();
+if ($method === 'GET' && $path === '/games') listGames();
+if ($method === 'POST' && preg_match('#^/games/(\d+)/end$#', $path, $matches)) endGame((int) $matches[1]);
+if ($method === 'GET' && $path === '/payment-settings') getPaymentSettings();
+if ($method === 'POST' && $path === '/mpesa/c2b/validation') mpesaC2BValidation();
+if ($method === 'POST' && $path === '/mpesa/c2b/confirmation') mpesaC2BConfirmation();
 
 jsonResponse(['error' => 'Route not found'], 404);
