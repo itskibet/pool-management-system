@@ -7,13 +7,22 @@
 node_modules/
 .next/
 out/
+frontend/package-lock.json
 
 # PHP
 /vendor/
+backend/vendor/
+backend/composer.lock
 
 # Runtime
 backend/storage/logs/*.log
 *.log
+
+# Local backups
+local-backup/
+
+# Generated files
+frontend/next-env.d.ts
 
 # IDE/OS
 .vscode/
