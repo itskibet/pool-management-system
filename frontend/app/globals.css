@@ -12,3 +12,8 @@
 .payment-instructions>div>span{display:grid;place-items:center;width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:#101828;color:#fff;font-size:12px;font-weight:800}
 .payment-instructions strong{display:block;font-size:13px}
 .payment-instructions small{display:block;margin-top:3px;color:#667085;line-height:1.45}
+
+
+/* Dashboard state refinements */
+.pulse.offline{background:#d96a6a;box-shadow:0 0 0 4px rgba(217,106,106,.12)}
+.healthy-badge.dim{background:#f3f4f6;color:#7a8492}
