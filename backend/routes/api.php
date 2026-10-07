@@ -8,6 +8,7 @@ require_once __DIR__ . '/../controllers/PaymentController.php';
 require_once __DIR__ . '/../controllers/GameController.php';
 require_once __DIR__ . '/../controllers/PaymentSettingsController.php';
 require_once __DIR__ . '/../controllers/MpesaController.php';
+require_once __DIR__ . '/../controllers/PayHeroController.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
@@ -42,6 +43,8 @@ if ($method === 'GET' && $path === '/payments') listPayments();
 if ($method === 'GET' && $path === '/games') listGames();
 if ($method === 'POST' && preg_match('#^/games/(\d+)/end$#', $path, $matches)) endGame((int) $matches[1]);
 if ($method === 'GET' && $path === '/payment-settings') getPaymentSettings();
+if ($method === 'POST' && $path === '/payhero/stk-push') initiatePayHeroStkPush();
+if ($method === 'POST' && $path === '/payhero/callback') payHeroCallback();
 if ($method === 'POST' && $path === '/mpesa/c2b/validation') mpesaC2BValidation();
 if ($method === 'POST' && $path === '/mpesa/c2b/confirmation') mpesaC2BConfirmation();
 
