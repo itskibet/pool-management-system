@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type PoolTable = {
   id: number;
@@ -49,6 +50,9 @@ function isToday(value?: string | null) {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{name:string; role:string} | null>(null);
   const [tables, setTables] = useState<PoolTable[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -57,6 +61,7 @@ export default function Home() {
   const [error, setError] = useState('');
 
   const loadDashboard = useCallback(async () => {
+    if (!authChecked) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       setError('API URL is not configured.');
@@ -66,9 +71,9 @@ export default function Home() {
 
     try {
       const [tablesResponse, paymentsResponse, gamesResponse, healthResponse] = await Promise.all([
-        fetch(`${apiUrl}/tables`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/payments`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/games`, { cache: 'no-store' }),
+        fetch(`${apiUrl}/tables`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${apiUrl}/payments`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${apiUrl}/games`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${apiUrl}/health`, { cache: 'no-store' }),
       ]);
 
@@ -94,10 +99,24 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) return;
+      const response = await fetch(`${apiUrl}/auth/me`, { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) { router.replace('/login'); return; }
+      const result = await response.json();
+      setCurrentUser(result.data);
+      setAuthChecked(true);
+    };
+    checkAuth();
+  }, [router]);
+
+  useEffect(() => {
+    if (!authChecked) return;
     loadDashboard();
     const timer = window.setInterval(loadDashboard, 10000);
     return () => window.clearInterval(timer);
-  }, [loadDashboard]);
+  }, [loadDashboard, authChecked]);
 
   const available = useMemo(() => tables.filter((table) => table.status === 'available').length, [tables]);
   const playing = useMemo(() => tables.filter((table) => table.status === 'playing').length, [tables]);
@@ -126,6 +145,8 @@ export default function Home() {
           <a className="nav-item" href="#payments"><span className="nav-icon">↗</span><span>Payments</span></a>
           <a className="nav-item" href="#games"><span className="nav-icon">◷</span><span>Games</span></a>
           <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
+          {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users"><span className="nav-icon">♙</span><span>Users</span></Link>}
+          <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/login"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
         </nav>
         <div className="sidebar-card">
           <span className="sidebar-card-kicker">QUICK STATUS</span>
@@ -135,7 +156,7 @@ export default function Home() {
         </div>
         <div className="sidebar-footer">
           <div className="connection"><span className={`pulse ${apiHealthy ? '' : 'offline'}`} /> {apiHealthy ? 'API connected' : 'API offline'}</div>
-          <div className="user-card"><div className="avatar">A</div><div><strong>Administrator</strong><span>Local control panel</span></div><span className="dots">•••</span></div>
+          <div className="user-card"><div className="avatar">A</div><div><strong>{currentUser?.name ?? "Administrator"}</strong><span>{currentUser?.role ?? "user"}</span></div><span className="dots">•••</span></div>
         </div>
       </aside>
 
