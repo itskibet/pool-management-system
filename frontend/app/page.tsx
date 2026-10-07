@@ -61,7 +61,6 @@ export default function Home() {
   const [error, setError] = useState('');
 
   const loadDashboard = useCallback(async () => {
-    if (!authChecked) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       setError('API URL is not configured.');
