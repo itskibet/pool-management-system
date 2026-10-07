@@ -10,6 +10,7 @@ $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if ($requestOrigin !== '' && hash_equals($allowedOrigin, $requestOrigin)) {
     header('Access-Control-Allow-Origin: ' . $requestOrigin);
+    header('Access-Control-Allow-Credentials: true');
     header('Vary: Origin');
 }
 
