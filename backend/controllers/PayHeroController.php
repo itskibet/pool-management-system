@@ -6,6 +6,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/organization.php';
 require_once __DIR__ . '/../config/response.php';
 require_once __DIR__ . '/../config/env.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
