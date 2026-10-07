@@ -63,6 +63,7 @@ CREATE TABLE payments (
   phone_number VARCHAR(20) NULL,
   amount DECIMAL(10,2) NOT NULL,
   account_reference VARCHAR(100) NULL,
+  external_reference VARCHAR(120) NULL,
   merchant_request_id VARCHAR(100) NULL,
   checkout_request_id VARCHAR(100) NULL,
   mpesa_receipt VARCHAR(100) NULL,
@@ -76,7 +77,8 @@ CREATE TABLE payments (
   CONSTRAINT fk_payments_table FOREIGN KEY (table_id) REFERENCES tables(id),
   UNIQUE KEY uq_checkout_request (checkout_request_id),
   UNIQUE KEY uq_mpesa_receipt (mpesa_receipt),
-  UNIQUE KEY uq_transaction_id (transaction_id)
+  UNIQUE KEY uq_transaction_id (transaction_id),
+  UNIQUE KEY uq_payments_external_reference (external_reference)
 ) ENGINE=InnoDB;
 
 CREATE TABLE games (
