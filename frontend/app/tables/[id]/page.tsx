@@ -51,11 +51,11 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
       }
 
       Promise.all([
-        fetch(`${apiUrl}/tables/${id}`).then((r) => {
+        fetch(`${apiUrl}/tables/${id}`, { credentials: 'include' }).then((r) => {
           if (!r.ok) throw new Error('Table not found');
           return r.json();
         }),
-        fetch(`${apiUrl}/payments`).then((r) => r.ok ? r.json() : { data: [] }),
+        fetch(`${apiUrl}/payments`, { credentials: 'include' }).then((r) => r.ok ? r.json() : { data: [] }),
       ])
         .then(([tableResult, paymentResult]) => {
           setTable(tableResult.data);
