@@ -6,6 +6,10 @@ require_once __DIR__ . '/env.php';
 
 function currentOrganizationId(): int
 {
+    if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['organization_id'])) {
+        return max(1, (int) $_SESSION['organization_id']);
+    }
+
     return max(1, (int) env('DEFAULT_ORGANIZATION_ID', '1'));
 }
 
