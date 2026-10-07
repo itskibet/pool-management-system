@@ -76,3 +76,124 @@ function createPendingPayment(): never
         ],
     ], 201);
 }
+
+function confirmPayment(int $id): never
+{
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (!is_array($input)) {
+        jsonResponse(['error' => 'Request body must be valid JSON'], 400);
+    }
+
+    $receipt = trim((string) ($input['mpesa_receipt'] ?? ''));
+    $transactionId = trim((string) ($input['transaction_id'] ?? ''));
+
+    if ($receipt === '' && $transactionId === '') {
+        jsonResponse(['error' => 'mpesa_receipt or transaction_id is required'], 422);
+    }
+
+    $pdo = db();
+    $pdo->beginTransaction();
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT p.id, p.table_id, p.amount, p.account_reference, p.status AS payment_status,
+                    t.table_number, t.mqtt_topic, t.status AS table_status
+             FROM payments p
+             INNER JOIN tables t ON t.id = p.table_id
+             WHERE p.id = ? AND p.organization_id = ?
+             FOR UPDATE'
+        );
+        $stmt->execute([$id, currentOrganizationId()]);
+        $payment = $stmt->fetch();
+
+        if (!$payment) {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Payment not found'], 404);
+        }
+
+        if ($payment['payment_status'] !== 'pending') {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Payment is not pending'], 409);
+        }
+
+        if ($payment['table_status'] !== 'available') {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Table is not available for this payment'], 409);
+        }
+
+        $updatePayment = $pdo->prepare(
+            'UPDATE payments
+             SET status = "confirmed",
+                 mpesa_receipt = ?,
+                 transaction_id = ?,
+                 paid_at = NOW()
+             WHERE id = ? AND organization_id = ?'
+        );
+        $updatePayment->execute([
+            $receipt !== '' ? $receipt : null,
+            $transactionId !== '' ? $transactionId : null,
+            $id,
+            currentOrganizationId(),
+        ]);
+
+        $createGame = $pdo->prepare(
+            'INSERT INTO games
+             (organization_id, table_id, payment_id, started_at, status)
+             VALUES (?, ?, ?, NOW(), "active")'
+        );
+        $createGame->execute([
+            currentOrganizationId(),
+            $payment['table_id'],
+            $id,
+        ]);
+        $gameId = (int) $pdo->lastInsertId();
+
+        $updateTable = $pdo->prepare(
+            'UPDATE tables
+             SET status = "playing"
+             WHERE id = ? AND organization_id = ?'
+        );
+        $updateTable->execute([
+            $payment['table_id'],
+            currentOrganizationId(),
+        ]);
+
+        $queueCommand = $pdo->prepare(
+            'INSERT INTO mqtt_commands
+             (organization_id, table_id, payment_id, game_id, topic, command, status)
+             VALUES (?, ?, ?, ?, ?, "unlock", "queued")'
+        );
+        $queueCommand->execute([
+            currentOrganizationId(),
+            $payment['table_id'],
+            $id,
+            $gameId,
+            $payment['mqtt_topic'],
+        ]);
+        $mqttCommandId = (int) $pdo->lastInsertId();
+
+        $pdo->commit();
+
+        jsonResponse([
+            'message' => 'Payment confirmed; game started and unlock command queued',
+            'data' => [
+                'payment_id' => $id,
+                'payment_status' => 'confirmed',
+                'game_id' => $gameId,
+                'game_status' => 'active',
+                'table_id' => (int) $payment['table_id'],
+                'table_number' => $payment['table_number'],
+                'table_status' => 'playing',
+                'mqtt_command_id' => $mqttCommandId,
+                'mqtt_command' => 'unlock',
+                'mqtt_status' => 'queued',
+            ],
+        ]);
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
