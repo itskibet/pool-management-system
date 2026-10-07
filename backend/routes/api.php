@@ -29,6 +29,7 @@ if($method==='GET'&&$path==='/tables'){requireAuth();listTables();}
 if($method==='GET'&&preg_match('#^/tables/(\d+)$#',$path,$m)){requireAuth();getTable((int)$m[1]);}
 if($method==='GET'&&$path==='/payments'){requireAuth();listPayments();}
 if($method==='POST'&&$path==='/payments'){requireAuth();createPendingPayment();}
+if($method==='POST'&&preg_match('#^/payments/(\\d+)/confirm$#',$path,$m)){requireAuth();confirmPayment((int)$m[1]);}
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireAuth();endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
