@@ -28,6 +28,7 @@ if($method==='PUT'&&preg_match('#^/users/(\d+)$#',$path,$m))updateUser((int)$m[1
 if($method==='GET'&&$path==='/tables'){requireAuth();listTables();}
 if($method==='GET'&&preg_match('#^/tables/(\d+)$#',$path,$m)){requireAuth();getTable((int)$m[1]);}
 if($method==='GET'&&$path==='/payments'){requireAuth();listPayments();}
+if($method==='POST'&&$path==='/payments'){requireAuth();createPendingPayment();}
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireAuth();endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
