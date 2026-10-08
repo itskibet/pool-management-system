@@ -52,7 +52,7 @@ function isToday(value?: string | null) {
 export default function Home() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{name:string; role:string} | null>(null);
+  const [currentUser, setCurrentUser] = useState<{name:string; role:string; is_system_admin:number|boolean} | null>(null);
   const [tables, setTables] = useState<PoolTable[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -145,6 +145,10 @@ export default function Home() {
           <a className="nav-item" href="#games"><span className="nav-icon">◷</span><span>Games</span></a>
           <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
           {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users"><span className="nav-icon">♙</span><span>Users</span></Link>}
+          {(currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <>
+            <Link className="nav-item" href="/organizations"><span className="nav-icon">⌂</span><span>Clients</span></Link>
+            <Link className="nav-item" href="/billing"><span className="nav-icon">KSh</span><span>Billing</span></Link>
+          </>}
           <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/login"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
         </nav>
         <div className="sidebar-card">
