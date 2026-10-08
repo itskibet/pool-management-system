@@ -17,6 +17,7 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('owner','admin','attendant','accountant') NOT NULL DEFAULT 'attendant',
   active TINYINT(1) NOT NULL DEFAULT 1,
+  is_system_admin TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_users_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
@@ -125,6 +126,25 @@ CREATE TABLE audit_logs (
   CONSTRAINT fk_audit_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
   CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB;
+
+
+CREATE TABLE daily_closings (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  organization_id BIGINT UNSIGNED NOT NULL,
+  business_date DATE NOT NULL,
+  gross_revenue DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  platform_fee_rate DECIMAL(5,2) NOT NULL DEFAULT 4.00,
+  platform_fee_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  status ENUM('closed') NOT NULL DEFAULT 'closed',
+  closed_by BIGINT UNSIGNED NULL,
+  closed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_daily_closing_org_date (organization_id, business_date),
+  CONSTRAINT fk_daily_closing_organization FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+  CONSTRAINT fk_daily_closing_user FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_daily_closings_org_date ON daily_closings(organization_id, business_date);
 
 CREATE INDEX idx_payments_org_status_created ON payments(organization_id, status, created_at);
 CREATE INDEX idx_games_org_status_started ON games(organization_id, status, started_at);
