@@ -37,4 +37,9 @@ if($method==='POST'&&$path==='/payhero/stk-push'){requireAuth();initiatePayHeroS
 if($method==='POST'&&$path==='/payhero/callback')payHeroCallback();
 if($method==='POST'&&$path==='/mpesa/c2b/validation')mpesaC2BValidation();
 if($method==='POST'&&$path==='/mpesa/c2b/confirmation')mpesaC2BConfirmation();
+if($method==='GET'&&$path==='/organizations')listOrganizations();
+if($method==='POST'&&$path==='/organizations')createOrganization();
+if($method==='GET'&&preg_match('#^/organizations/(\\d+)$#',$path,$m))getOrganizationSummary((int)$m[1]);
+if($method==='GET'&&$path==='/billing/daily-closings')listDailyClosings();
+if($method==='POST'&&$path==='/billing/close-day')closeDailyBusiness();
 jsonResponse(['error'=>'Route not found'],404);
