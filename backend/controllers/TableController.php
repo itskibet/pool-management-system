@@ -59,6 +59,18 @@ function createTable(): never
 
     $organizationId = (int) $actor['organization_id'];
 
+    if ((int) ($actor['is_system_admin'] ?? 0) === 1 && isset($input['organization_id'])) {
+        $organizationId = (int) $input['organization_id'];
+        if ($organizationId <= 0) {
+            jsonResponse(['error' => 'A valid client organization is required'], 422);
+        }
+        $orgCheck = db()->prepare('SELECT id FROM organizations WHERE id = ? LIMIT 1');
+        $orgCheck->execute([$organizationId]);
+        if (!$orgCheck->fetchColumn()) {
+            jsonResponse(['error' => 'Client organization not found'], 404);
+        }
+    }
+
     $check = db()->prepare(
         'SELECT id FROM tables WHERE organization_id = ? AND table_number = ? LIMIT 1'
     );
