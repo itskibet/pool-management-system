@@ -241,7 +241,7 @@ export default function Home() {
         <section className="section-heading" id="tables">
           <div><div className="section-title-row"><h2>Tables</h2><span className="live-dot">Live</span></div><p>Table status refreshes automatically every 10 seconds.</p></div>
           <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-            {(currentUser?.role === 'owner' || currentUser?.role === 'admin') && <button className="ghost-button" onClick={() => { setTableError(''); setShowAddTable(true); }}>+ Add table</button>}
+            {(currentUser?.role === 'owner' || currentUser?.role === 'admin' || currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <button className="ghost-button" onClick={() => { setTableError(''); setShowAddTable(true); }}>+ Add table</button>}
             <button className="ghost-button" onClick={loadDashboard}>Refresh <span>↻</span></button>
           </div>
         </section>
