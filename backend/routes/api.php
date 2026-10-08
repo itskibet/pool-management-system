@@ -28,6 +28,7 @@ if($method==='GET'&&$path==='/users')listUsers();
 if($method==='POST'&&$path==='/users')createUser();
 if($method==='PUT'&&preg_match('#^/users/(\d+)$#',$path,$m))updateUser((int)$m[1]);
 if($method==='GET'&&$path==='/tables'){requireAuth();listTables();}
+if($method==='POST'&&$path==='/tables'){requireRoles(['owner','admin']);createTable();}
 if($method==='GET'&&preg_match('#^/tables/(\d+)$#',$path,$m)){requireAuth();getTable((int)$m[1]);}
 if($method==='GET'&&$path==='/payments'){requireAuth();listPayments();}
 if($method==='POST'&&$path==='/payments'){requireAuth();createPendingPayment();}
