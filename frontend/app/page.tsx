@@ -52,7 +52,15 @@ function isToday(value?: string | null) {
 export default function Home() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{name:string; role:string; is_system_admin:number|boolean} | null>(null);
+  const [currentUser, setCurrentUser] = useState<{name:string; role:string; is_system_admin:number|boolean; organization_id?:number} | null>(null);
+  const [organizations, setOrganizations] = useState<{id:number; name:string}[]>([]);
+  const [showAddTable, setShowAddTable] = useState(false);
+  const [tableNumber, setTableNumber] = useState('');
+  const [tableName, setTableName] = useState('');
+  const [tablePrice, setTablePrice] = useState('30');
+  const [tableOrganizationId, setTableOrganizationId] = useState('');
+  const [tableSaving, setTableSaving] = useState(false);
+  const [tableError, setTableError] = useState('');
   const [tables, setTables] = useState<PoolTable[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -109,6 +117,53 @@ export default function Home() {
     };
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    const loadOrganizations = async () => {
+      if (!currentUser?.is_system_admin || !process.env.NEXT_PUBLIC_API_URL) return;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations`, { credentials: 'include', cache: 'no-store' });
+      if (!response.ok) return;
+      const result = await response.json();
+      const list = result.data ?? [];
+      setOrganizations(list);
+      if (list.length && !tableOrganizationId) setTableOrganizationId(String(list[0].id));
+    };
+    loadOrganizations();
+  }, [authChecked, currentUser?.is_system_admin, tableOrganizationId]);
+
+  async function createTable(event: React.FormEvent) {
+    event.preventDefault();
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+    setTableError('');
+    setTableSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        table_number: tableNumber.trim(),
+        name: tableName.trim(),
+        price: Number(tablePrice),
+      };
+      if (currentUser?.is_system_admin && tableOrganizationId) body.organization_id = Number(tableOrganizationId);
+      const response = await fetch(`${apiUrl}/tables`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to create table');
+      setTableNumber('');
+      setTableName('');
+      setTablePrice('30');
+      setShowAddTable(false);
+      await loadDashboard();
+    } catch (err) {
+      setTableError(err instanceof Error ? err.message : 'Unable to create table');
+    } finally {
+      setTableSaving(false);
+    }
+  }
 
   useEffect(() => {
     if (!authChecked) return;
@@ -185,8 +240,35 @@ export default function Home() {
 
         <section className="section-heading" id="tables">
           <div><div className="section-title-row"><h2>Tables</h2><span className="live-dot">Live</span></div><p>Table status refreshes automatically every 10 seconds.</p></div>
-          <button className="ghost-button" onClick={loadDashboard}>Refresh <span>↻</span></button>
+          <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+            {(currentUser?.role === 'owner' || currentUser?.role === 'admin') && <button className="ghost-button" onClick={() => { setTableError(''); setShowAddTable(true); }}>+ Add table</button>}
+            <button className="ghost-button" onClick={loadDashboard}>Refresh <span>↻</span></button>
+          </div>
         </section>
+
+        {showAddTable && (
+          <div className="modal-backdrop" onClick={() => setShowAddTable(false)}>
+            <div className="detail-card" style={{maxWidth:'520px', width:'100%', margin:'10vh auto'}} onClick={(event) => event.stopPropagation()}>
+              <div className="detail-card-heading"><div><span className="detail-eyebrow">TABLE MANAGEMENT</span><h2>Add pool table</h2></div></div>
+              <form onSubmit={createTable} className="user-form">
+                {currentUser?.is_system_admin && <label>Client
+                  <select value={tableOrganizationId} onChange={(event) => setTableOrganizationId(event.target.value)} required>
+                    <option value="">Select client</option>
+                    {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+                  </select>
+                </label>}
+                <label>Table number<input value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} placeholder="Table_04" required /></label>
+                <label>Table name<input value={tableName} onChange={(event) => setTableName(event.target.value)} placeholder="Pool Table 04" required /></label>
+                <label>Price per game (KES)<input type="number" min="0.01" step="0.01" value={tablePrice} onChange={(event) => setTablePrice(event.target.value)} required /></label>
+                {tableError && <div className="auth-error">{tableError}</div>}
+                <div style={{display:'flex', gap:'10px'}}>
+                  <button type="button" className="ghost-button" onClick={() => setShowAddTable(false)}>Cancel</button>
+                  <button type="submit" className="auth-submit" disabled={tableSaving}>{tableSaving ? 'Creating…' : 'Create table'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {error && <div className="alert">{error}</div>}
         {loading && <div className="loading-card"><span className="loader" /> Loading live table data...</div>}
