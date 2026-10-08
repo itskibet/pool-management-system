@@ -123,7 +123,7 @@ try {
     $update->execute([$commandId]);
 
     echo sprintf(
-        "[MQTT WORKER] Published command #%d: %s -> %s%n",
+        "[MQTT WORKER] Published command #%d: %s -> %s" . PHP_EOL,
         $commandId,
         strtoupper($action),
         $topic
