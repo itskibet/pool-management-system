@@ -12,6 +12,8 @@ function closeDailyBusiness(): never
 {
     $actor=requireRoles(['owner','admin']);$input=json_decode(file_get_contents('php://input'),true)?:[];$date=trim((string)($input['business_date']??date('Y-m-d')));
     if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date))jsonResponse(['error'=>'business_date must use YYYY-MM-DD'],422);
+    $today=(new DateTimeImmutable('now',new DateTimeZone('Africa/Nairobi')))->format('Y-m-d');
+    if($date>$today)jsonResponse(['error'=>'You cannot close a future business date'],422);
     $org=(int)$actor['organization_id'];$pdo=db();$pdo->beginTransaction();
     try{
         $s=$pdo->prepare('SELECT id FROM daily_closings WHERE organization_id=? AND business_date=? FOR UPDATE');$s->execute([$org,$date]);if($s->fetch()){ $pdo->rollBack();jsonResponse(['error'=>'This business day is already closed'],409);}
