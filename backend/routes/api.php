@@ -12,6 +12,8 @@ require_once __DIR__ . '/../controllers/GameController.php';
 require_once __DIR__ . '/../controllers/PaymentSettingsController.php';
 require_once __DIR__ . '/../controllers/MpesaController.php';
 require_once __DIR__ . '/../controllers/PayHeroController.php';
+require_once __DIR__ . '/../controllers/OrganizationController.php';
+require_once __DIR__ . '/../controllers/BillingController.php';
 
 $method=$_SERVER['REQUEST_METHOD']; $path=parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)??'/';
 $path=rtrim($path,'/'); $path=preg_replace('#^/index.php#','',$path); $path=preg_replace('#^/api#','',$path); $path=$path===''?'/':$path;
