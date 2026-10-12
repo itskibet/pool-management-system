@@ -11,12 +11,12 @@ export default function LoginPage() {
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(false);
 
-  useEffect(()=>{(async()=>{const api=process.env.NEXT_PUBLIC_API_URL;if(!api)return;const r=await fetch(api+'/auth/me',{credentials:'include'});if(r.ok)router.replace('/');})();},[router]);
+  useEffect(()=>{(async()=>{const api=process.env.NEXT_PUBLIC_API_URL;if(!api)return;const r=await fetch(api+'/auth/me',{credentials:'include'});if(r.ok)router.replace('/dashboard');})();},[router]);
 
   async function submit(e:FormEvent){e.preventDefault();setError('');setLoading(true);
     try{const api=process.env.NEXT_PUBLIC_API_URL;if(!api)throw new Error('API URL is not configured.');
       const r=await fetch(api+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({email,password})});
-      const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to sign in');router.replace('/');
+      const d=await r.json();if(!r.ok)throw new Error(d.error||'Unable to sign in');router.replace('/dashboard');
     }catch(err){setError(err instanceof Error?err.message:'Unable to sign in');}finally{setLoading(false);}
   }
 
