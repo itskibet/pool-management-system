@@ -73,7 +73,7 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
   if (error || !table) {
     return (
       <main className="detail-page">
-        <div className="detail-error"><strong>{error || 'Table not found.'}</strong><Link href="/">← Back to overview</Link></div>
+        <div className="detail-error"><strong>{error || 'Table not found.'}</strong><Link href="/dashboard">← Back to overview</Link></div>
       </main>
     );
   }
@@ -86,7 +86,7 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
     <main className="detail-page">
       <header className="detail-header">
         <div>
-          <Link href="/" className="back-link">← Back to overview</Link>
+          <Link href="/dashboard" className="back-link">← Back to overview</Link>
           <div className="detail-kicker">TABLE MANAGEMENT <span>/</span> {table.table_number.replace('_', ' ')}</div>
           <div className="detail-title-row">
             <div>
