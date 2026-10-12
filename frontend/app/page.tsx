@@ -1,324 +1,73 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
-type PoolTable = {
-  id: number;
-  table_number: string;
-  name: string;
-  price: string;
-  status: 'available' | 'payment_pending' | 'playing' | 'offline' | string;
-  mqtt_topic: string;
-};
-
-type Payment = {
-  id: number;
-  table_id: number;
-  table_number?: string;
-  table_name?: string;
-  amount: string;
-  status: string;
-  transaction_id?: string | null;
-  mpesa_receipt?: string | null;
-  created_at?: string;
-  paid_at?: string | null;
-};
-
-type Game = {
-  id: number;
-  table_id: number;
-  status: string;
-  started_at?: string | null;
-};
-
-const statusLabel: Record<string, string> = {
-  available: 'Available',
-  playing: 'Playing',
-  payment_pending: 'Payment pending',
-  offline: 'Offline',
-};
-
-function isToday(value?: string | null) {
-  if (!value) return false;
-  const date = new Date(value.replace(' ', 'T'));
-  const now = new Date();
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate();
+function PoolMascot() {
+  return (
+    <svg className="welcome-mascot" viewBox="0 0 420 390" role="img" aria-label="Friendly PoolPilot eight-ball mascot beside a pool table">
+      <defs>
+        <linearGradient id="eightball" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#43536a"/><stop offset="1" stopColor="#091321"/></linearGradient>
+        <linearGradient id="felt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#35c38b"/><stop offset="1" stopColor="#08734e"/></linearGradient>
+      </defs>
+      <ellipse cx="210" cy="343" rx="142" ry="16" fill="#0b1d2b" opacity=".1"/>
+      <g transform="translate(26 235) rotate(-5 175 45)">
+        <rect x="8" y="17" width="342" height="91" rx="16" fill="#173d36"/>
+        <rect x="19" y="5" width="320" height="79" rx="11" fill="#ad7544"/>
+        <rect x="29" y="13" width="300" height="63" rx="7" fill="url(#felt)"/>
+        <g fill="#092c28"><circle cx="37" cy="21" r="6"/><circle cx="179" cy="17" r="6"/><circle cx="321" cy="21" r="6"/><circle cx="37" cy="68" r="6"/><circle cx="179" cy="72" r="6"/><circle cx="321" cy="68" r="6"/></g>
+        <g><circle cx="231" cy="36" r="9" fill="#fff"/><circle cx="262" cy="56" r="9" fill="#f2b544"/><circle cx="291" cy="34" r="9" fill="#ed6b67"/></g>
+        <path d="M62 85v17 M295 85v17" stroke="#80502f" strokeWidth="10" strokeLinecap="round"/>
+      </g>
+      <g transform="translate(110 26)">
+        <circle cx="105" cy="133" r="99" fill="url(#eightball)"/>
+        <ellipse cx="76" cy="65" rx="35" ry="17" fill="#fff" opacity=".08" transform="rotate(-25 76 65)"/>
+        <circle cx="105" cy="133" r="51" fill="#f7f8fa"/>
+        <text x="105" y="156" textAnchor="middle" fontSize="69" fontWeight="800" fontFamily="Arial,sans-serif" fill="#111c2b">8</text>
+        <ellipse cx="73" cy="128" rx="7" ry="10" fill="#111c2b"/><ellipse cx="137" cy="128" rx="7" ry="10" fill="#111c2b"/>
+        <circle cx="75" cy="124" r="3" fill="#fff"/><circle cx="139" cy="124" r="3" fill="#fff"/>
+        <path d="M84 151 Q105 170 126 151" fill="none" stroke="#111c2b" strokeWidth="5" strokeLinecap="round"/>
+        <path d="M35 216 Q12 231 22 250 Q32 260 49 241 M175 216 Q199 229 190 247 Q181 259 164 240" fill="#1d2d43" stroke="#0c1727" strokeWidth="5"/>
+        <path d="M75 227 L70 254 Q105 275 140 254 L135 227" fill="#1d2d43"/>
+      </g>
+      <g transform="translate(310 66)"><circle cx="25" cy="25" r="24" fill="#e2f8ed"/><path d="M15 25l7 7 14-16" fill="none" stroke="#159765" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/></g>
+      <path d="M60 137l6 12 12 6-12 6-6 12-6-12-12-6 12-6z" fill="#f3bd58"/>
+      <circle cx="328" cy="201" r="4" fill="#24a879"/><circle cx="83" cy="192" r="3" fill="#24a879"/>
+    </svg>
+  );
 }
 
-export default function Home() {
-  const router = useRouter();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{name:string; role:string; is_system_admin:number|boolean; organization_id?:number} | null>(null);
-  const [organizations, setOrganizations] = useState<{id:number; name:string}[]>([]);
-  const [showAddTable, setShowAddTable] = useState(false);
-  const [tableNumber, setTableNumber] = useState('');
-  const [tableName, setTableName] = useState('');
-  const [tablePrice, setTablePrice] = useState('30');
-  const [tableOrganizationId, setTableOrganizationId] = useState('');
-  const [tableSaving, setTableSaving] = useState(false);
-  const [tableError, setTableError] = useState('');
-  const [tables, setTables] = useState<PoolTable[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [games, setGames] = useState<Game[]>([]);
-  const [apiHealthy, setApiHealthy] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const loadDashboard = useCallback(async () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      setError('API URL is not configured.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const [tablesResponse, paymentsResponse, gamesResponse, healthResponse] = await Promise.all([
-        fetch(`${apiUrl}/tables`, { cache: 'no-store', credentials: 'include' }),
-        fetch(`${apiUrl}/payments`, { cache: 'no-store', credentials: 'include' }),
-        fetch(`${apiUrl}/games`, { cache: 'no-store', credentials: 'include' }),
-        fetch(`${apiUrl}/health`, { cache: 'no-store' }),
-      ]);
-
-      if (!tablesResponse.ok) throw new Error('Failed to fetch tables');
-
-      const [tableResult, paymentResult, gameResult] = await Promise.all([
-        tablesResponse.json(),
-        paymentsResponse.ok ? paymentsResponse.json() : { data: [] },
-        gamesResponse.ok ? gamesResponse.json() : { data: [] },
-      ]);
-
-      setTables(tableResult.data ?? []);
-      setPayments(paymentResult.data ?? []);
-      setGames(gameResult.data ?? []);
-      setApiHealthy(healthResponse.ok);
-      setError('');
-    } catch {
-      setApiHealthy(false);
-      setError('Unable to connect to the backend. Check that the API is running.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!apiUrl) return;
-      const response = await fetch(`${apiUrl}/auth/me`, { credentials: 'include', cache: 'no-store' });
-      if (!response.ok) { router.replace('/login'); return; }
-      const result = await response.json();
-      setCurrentUser(result.data);
-      setAuthChecked(true);
-    };
-    checkAuth();
-  }, [router]);
-
-  useEffect(() => {
-    if (!authChecked) return;
-    const loadOrganizations = async () => {
-      if (!currentUser?.is_system_admin || !process.env.NEXT_PUBLIC_API_URL) return;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/organizations`, { credentials: 'include', cache: 'no-store' });
-      if (!response.ok) return;
-      const result = await response.json();
-      const list = result.data ?? [];
-      setOrganizations(list);
-      if (list.length && !tableOrganizationId) setTableOrganizationId(String(list[0].id));
-    };
-    loadOrganizations();
-  }, [authChecked, currentUser?.is_system_admin, tableOrganizationId]);
-
-  async function createTable(event: React.FormEvent) {
-    event.preventDefault();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return;
-    setTableError('');
-    setTableSaving(true);
-    try {
-      const body: Record<string, unknown> = {
-        table_number: tableNumber.trim(),
-        name: tableName.trim(),
-        price: Number(tablePrice),
-      };
-      if (currentUser?.is_system_admin && tableOrganizationId) body.organization_id = Number(tableOrganizationId);
-      const response = await fetch(`${apiUrl}/tables`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Unable to create table');
-      setTableNumber('');
-      setTableName('');
-      setTablePrice('30');
-      setShowAddTable(false);
-      await loadDashboard();
-    } catch (err) {
-      setTableError(err instanceof Error ? err.message : 'Unable to create table');
-    } finally {
-      setTableSaving(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!authChecked) return;
-    loadDashboard();
-    const timer = window.setInterval(loadDashboard, 10000);
-    return () => window.clearInterval(timer);
-  }, [loadDashboard, authChecked]);
-
-  const available = useMemo(() => tables.filter((table) => table.status === 'available').length, [tables]);
-  const playing = useMemo(() => tables.filter((table) => table.status === 'playing').length, [tables]);
-  const pending = useMemo(() => tables.filter((table) => table.status === 'payment_pending').length, [tables]);
-  const todayPayments = useMemo(
-    () => payments.filter((payment) => payment.status === 'confirmed' && isToday(payment.paid_at ?? payment.created_at)),
-    [payments],
-  );
-  const revenue = useMemo(
-    () => todayPayments.reduce((total, payment) => total + Number(payment.amount || 0), 0),
-    [todayPayments],
-  );
-  const recentPayments = payments.slice(0, 5);
-
+export default function WelcomePage() {
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark"><span>8</span></div>
-          <div><strong>PoolPilot</strong><span>Operations</span></div>
+    <main className="welcome-page">
+      <nav className="welcome-nav">
+        <Link className="welcome-brand" href="/" aria-label="PoolPilot home">
+          <span className="welcome-brand-mark">8</span>
+          <span><strong>PoolPilot</strong><small>POOL HALL MANAGEMENT</small></span>
+        </Link>
+        <Link className="welcome-nav-login" href="/login">Log in <span aria-hidden="true">↗</span></Link>
+      </nav>
+      <section className="welcome-hero">
+        <div className="welcome-copy">
+          <div className="welcome-eyebrow"><span /> YOUR HALL. UNDER CONTROL.</div>
+          <h1>More play.<br/><span>Less hassle.</span></h1>
+          <p className="welcome-description">Run your pool hall with confidence. Keep tables organised, track sessions and bring your daily operations together in one simple place.</p>
+          <div className="welcome-actions">
+            <Link className="welcome-primary" href="/login">Login to PoolPilot <span aria-hidden="true">→</span></Link>
+            <span className="welcome-secure"><span aria-hidden="true">✓</span> Secure access for your team</span>
+          </div>
+          <div className="welcome-highlights">
+            <div><span className="welcome-highlight-icon">▦</span><span><strong>Table control</strong><small>Know what’s available</small></span></div>
+            <div><span className="welcome-highlight-icon">↗</span><span><strong>Payment tracking</strong><small>Follow each session</small></span></div>
+          </div>
         </div>
-        <div className="nav-label">MAIN MENU</div>
-        <nav>
-          <Link className="nav-item active" href="/"><span className="nav-icon">⌂</span><span>Overview</span></Link>
-          <a className="nav-item" href="#tables"><span className="nav-icon">▦</span><span>Tables</span></a>
-          <a className="nav-item" href="#payments"><span className="nav-icon">↗</span><span>Payments</span></a>
-          <a className="nav-item" href="#games"><span className="nav-icon">◷</span><span>Games</span></a>
-          <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
-          {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users"><span className="nav-icon">♙</span><span>Users</span></Link>}
-          {(currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <>
-            <Link className="nav-item" href="/organizations"><span className="nav-icon">⌂</span><span>Clients</span></Link>
-            <Link className="nav-item" href="/billing"><span className="nav-icon">KSh</span><span>Billing</span></Link>
-          </>}
-          <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/login"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
-        </nav>
-        <div className="sidebar-card">
-          <span className="sidebar-card-kicker">QUICK STATUS</span>
-          <strong>{available} tables ready</strong>
-          <p>{apiHealthy ? 'Live data is updating automatically.' : 'Backend connection needs attention.'}</p>
-          <div className="mini-progress"><span style={{ width: `${tables.length ? (available / tables.length) * 100 : 0}%` }} /></div>
+        <div className="welcome-art-wrap">
+          <div className="welcome-art-glow" />
+          <div className="welcome-art-badge"><span className="welcome-status-dot" /> READY WHEN YOU ARE</div>
+          <PoolMascot />
+          <div className="welcome-art-caption"><span className="welcome-caption-icon">8</span><span><strong>Meet your table-side teammate.</strong><small>Welcome to a smoother way to manage your hall.</small></span></div>
         </div>
-        <div className="sidebar-footer">
-          <div className="connection"><span className={`pulse ${apiHealthy ? '' : 'offline'}`} /> {apiHealthy ? 'API connected' : 'API offline'}</div>
-          <div className="user-card"><div className="avatar">A</div><div><strong>{currentUser?.name ?? "Administrator"}</strong><span>{currentUser?.role ?? "user"}</span></div><span className="dots">•••</span></div>
-        </div>
-      </aside>
-
-      <section className="content">
-        <header className="topbar">
-          <div>
-            <div className="breadcrumb">POOLPILOT <span>/</span> OVERVIEW</div>
-            <h1>Pool hall overview</h1>
-            <p className="muted">Monitor tables, sessions and verified payments from one place.</p>
-          </div>
-          <div className="top-actions">
-            <button className="icon-button" onClick={loadDashboard} aria-label="Refresh dashboard">↻</button>
-            <button className="icon-button notification" aria-label="Notifications">♧</button>
-          </div>
-        </header>
-
-        <section className="stats-grid">
-          <div className="stat-card"><div className="stat-icon blue">▦</div><div><span>Total tables</span><strong>{tables.length}</strong><small>Registered in system</small></div><em>Live</em></div>
-          <div className="stat-card"><div className="stat-icon green">✓</div><div><span>Available</span><strong>{available}</strong><small>Ready for customers</small></div><em className="positive">Ready</em></div>
-          <div className="stat-card"><div className="stat-icon amber">◷</div><div><span>Active sessions</span><strong>{playing}</strong><small>{pending} awaiting payment</small></div><em className="neutral">Live</em></div>
-          <div className="stat-card revenue"><div className="stat-icon purple">KSh</div><div><span>Today's revenue</span><strong>KSh {revenue.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><small>{todayPayments.length} confirmed payments</small></div><em className="neutral">KES</em></div>
-        </section>
-
-        <section className="section-heading" id="tables">
-          <div><div className="section-title-row"><h2>Tables</h2><span className="live-dot">Live</span></div><p>Table status refreshes automatically every 10 seconds.</p></div>
-          <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-            {(currentUser?.role === 'owner' || currentUser?.role === 'admin' || currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <button className="ghost-button" onClick={() => { setTableError(''); setShowAddTable(true); }}>+ Add table</button>}
-            <button className="ghost-button" onClick={loadDashboard}>Refresh <span>↻</span></button>
-          </div>
-        </section>
-
-        {showAddTable && (
-          <div className="modal-backdrop" onClick={() => setShowAddTable(false)}>
-            <div className="detail-card" style={{maxWidth:'520px', width:'100%', margin:'10vh auto'}} onClick={(event) => event.stopPropagation()}>
-              <div className="detail-card-heading"><div><span className="detail-eyebrow">TABLE MANAGEMENT</span><h2>Add pool table</h2></div></div>
-              <form onSubmit={createTable} className="user-form">
-                {currentUser?.is_system_admin && <label>Client
-                  <select value={tableOrganizationId} onChange={(event) => setTableOrganizationId(event.target.value)} required>
-                    <option value="">Select client</option>
-                    {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
-                  </select>
-                </label>}
-                <label>Table number<input value={tableNumber} onChange={(event) => setTableNumber(event.target.value)} placeholder="Table_04" required /></label>
-                <label>Table name<input value={tableName} onChange={(event) => setTableName(event.target.value)} placeholder="Pool Table 04" required /></label>
-                <label>Price per game (KES)<input type="number" min="0.01" step="0.01" value={tablePrice} onChange={(event) => setTablePrice(event.target.value)} required /></label>
-                {tableError && <div className="auth-error">{tableError}</div>}
-                <div style={{display:'flex', gap:'10px'}}>
-                  <button type="button" className="ghost-button" onClick={() => setShowAddTable(false)}>Cancel</button>
-                  <button type="submit" className="auth-submit" disabled={tableSaving}>{tableSaving ? 'Creating…' : 'Create table'}</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {error && <div className="alert">{error}</div>}
-        {loading && <div className="loading-card"><span className="loader" /> Loading live table data...</div>}
-
-        {!loading && !error && (
-          <section className="table-grid">
-            {tables.map((table) => (
-              <article className="table-card" key={table.id}>
-                <div className="table-top"><span className="table-number">{table.table_number.replace('_', ' ')}</span><span className={`status ${table.status}`}>{statusLabel[table.status] ?? table.status.replace('_', ' ')}</span></div>
-                <div className="table-visual">
-                  <div className="pool-icon"><span /><span /><span /><span /><span /></div>
-                  <div className="table-caption"><strong>{table.name}</strong><p>Controller: {table.mqtt_topic}</p></div>
-                </div>
-                <div className="table-bottom"><div><span>SESSION RATE</span><strong>KSh {table.price}</strong><small>one game / session</small></div><Link className="manage-button" href={`/tables/${table.id}`}>Open <span>→</span></Link></div>
-              </article>
-            ))}
-          </section>
-        )}
-
-        {!loading && !error && tables.length === 0 && <div className="loading-card">No tables have been registered yet.</div>}
-
-        <section className="lower-grid" id="payments">
-          <div className="panel">
-            <div className="panel-heading"><div><h2>Recent payments</h2><p>Verified payment activity from your hall.</p></div><span className="panel-link">{todayPayments.length} today</span></div>
-            {recentPayments.length === 0 ? (
-              <div className="empty-state"><div className="empty-icon">KSh</div><strong>No recent payments</strong><span>Confirmed M-Pesa transactions will appear here.</span></div>
-            ) : (
-              <div className="payment-list">
-                {recentPayments.map((payment) => (
-                  <div className="payment-row" key={payment.id}>
-                    <div className="payment-icon">KSh</div>
-                    <div className="payment-info"><strong>{payment.table_name ?? payment.table_number ?? `Table #${payment.table_id}`}</strong><span>{payment.transaction_id ?? payment.mpesa_receipt ?? 'Pending reference'} · {payment.status}</span></div>
-                    <div className="payment-amount"><strong>KSh {Number(payment.amount).toFixed(2)}</strong><span>{payment.paid_at ?? payment.created_at ?? ''}</span></div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="panel" id="health">
-            <div className="panel-heading"><div><h2>System health</h2><p>Live status of available services.</p></div><span className={`healthy-badge ${apiHealthy ? '' : 'dim'}`}><i /> {apiHealthy ? 'Healthy' : 'Offline'}</span></div>
-            <div className="service-row"><span><i className={apiHealthy ? 'ok' : 'waiting'} />PHP API</span><b className={apiHealthy ? '' : 'dim'}>{apiHealthy ? 'Connected' : 'Unavailable'}</b></div>
-            <div className="service-row"><span><i className="waiting" />M-Pesa</span><b className="dim">Integration pending</b></div>
-            <div className="service-row"><span><i className="waiting" />MQTT</span><b className="dim">Integration pending</b></div>
-            <div className="service-row" id="games"><span><i className="ok" />Sessions</span><b>{games.filter((game) => game.status === 'active').length} active</b></div>
-          </div>
-        </section>
-
-        <footer className="dashboard-footer"><span>PoolPilot Management</span><span>API v0.3.1 · Local development</span></footer>
       </section>
+      <footer className="welcome-footer"><span>© {new Date().getFullYear()} PoolPilot</span><span>Built for better-run pool halls</span></footer>
     </main>
   );
 }
