@@ -95,10 +95,20 @@ if ($password !== null && $password !== '') {
     $settings = $settings->setPassword($password);
 }
 
+$tls = filter_var(
+    env('MQTT_TLS', 'true'),
+    FILTER_VALIDATE_BOOLEAN
+);
+
+$settings = $settings->setUseTls($tls);
+
+if ($tls) {
+    $settings = $settings
+        ->setTlsVerifyPeer(true)
+        ->setTlsVerifyPeerName(true);
+}
+
 $settings = $settings
-    ->setUseTls(true)
-    ->setTlsVerifyPeer(true)
-    ->setTlsVerifyPeerName(true)
     ->setConnectTimeout(10)
     ->setSocketTimeout(10)
     ->setKeepAliveInterval(30);
