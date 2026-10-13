@@ -15,6 +15,19 @@ type PoolTable = {
   account_prefix: string;
 };
 
+type PaybillRequest = {
+  payment_id: number;
+  table_id: number;
+  table_number: string;
+  amount: number;
+  paybill_number: string;
+  account_reference: string;
+  external_reference: string;
+  checkout_request_id: string;
+  status: string;
+  payment_method: 'paybill';
+};
+
 type Payment = {
   id: number;
   table_id: number;
@@ -40,6 +53,9 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [paymentRequest, setPaymentRequest] = useState<PaybillRequest | null>(null);
+  const [paymentError, setPaymentError] = useState('');
+  const [requestingPayment, setRequestingPayment] = useState(false);
 
   useEffect(() => {
     params.then(({ id }) => {
@@ -66,6 +82,34 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
     });
   }, [params]);
 
+  async function generatePaybillInstructions() {
+    if (!table) return;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      setPaymentError('API URL is not configured.');
+      return;
+    }
+
+    setRequestingPayment(true);
+    setPaymentError('');
+    setPaymentRequest(null);
+    try {
+      const response = await fetch(`${apiUrl}/payhero/paybill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ table_id: table.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to generate Paybill instructions.');
+      setPaymentRequest(result.data as PaybillRequest);
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : 'Unable to generate Paybill instructions.');
+    } finally {
+      setRequestingPayment(false);
+    }
+  }
+
   if (loading) {
     return <main className="detail-page"><div className="detail-loading"><span className="loader" /> Loading table...</div></main>;
   }
@@ -80,7 +124,6 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
 
   const confirmed = payments.filter((payment) => payment.status === 'confirmed');
   const pending = payments.filter((payment) => payment.status === 'pending');
-  const accountReference = table.table_number.replace(/_/g, '');
 
   return (
     <main className="detail-page">
@@ -110,13 +153,22 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
             <span className="detail-eyebrow">CUSTOMER PAYMENT</span>
             <h2>Pay directly with M-Pesa</h2>
             <p>The customer does not need to scan a QR code or enter a phone number into this system.</p>
-            <div className="payment-instructions">
-              <div><span>1</span><div><strong>Open M-Pesa</strong><small>Choose Lipa na M-Pesa → Pay Bill.</small></div></div>
-              <div><span>2</span><div><strong>Business number</strong><small>{table.paybill_number}</small></div></div>
-              <div><span>3</span><div><strong>Account number</strong><small>{accountReference}</small></div></div>
-              <div><span>4</span><div><strong>Amount</strong><small>KSh {table.price}</small></div></div>
-              <div><span>5</span><div><strong>Complete payment</strong><small>After M-Pesa confirms it, the system verifies the transaction.</small></div></div>
-            </div>
+            <p>Generate a PayHero Paybill reference, then complete the payment manually in M-Pesa. No STK Push is sent and no phone number is required.</p>
+            {table.status === 'available' && (
+              <button className="detail-primary" onClick={generatePaybillInstructions} disabled={requestingPayment}>
+                {requestingPayment ? 'Generating instructions…' : 'Generate Paybill instructions'}
+              </button>
+            )}
+            {paymentError && <div className="detail-error" role="alert">{paymentError}</div>}
+            {paymentRequest && (
+              <div className="payment-instructions">
+                <div><span>1</span><div><strong>Open M-Pesa</strong><small>Choose Lipa na M-Pesa → Pay Bill.</small></div></div>
+                <div><span>2</span><div><strong>Business number</strong><small>{paymentRequest.paybill_number}</small></div></div>
+                <div><span>3</span><div><strong>Account number</strong><small>{paymentRequest.account_reference}</small></div></div>
+                <div><span>4</span><div><strong>Amount</strong><small>KSh {paymentRequest.amount.toFixed(2)}</small></div></div>
+                <div><span>5</span><div><strong>Complete payment</strong><small>Wait for PayHero to verify the payment before the table unlocks.</small></div></div>
+              </div>
+            )}
             <div className="security-note"><span>✓</span><div><strong>Verified payment unlocks the table</strong><small>The software never unlocks from a customer&apos;s claim or a client-side button.</small></div></div>
           </div>
 
@@ -129,7 +181,7 @@ export default function TableDetails({ params }: { params: Promise<{ id: string 
                 {payments.slice(0, 6).map((payment) => (
                   <div className="payment-row" key={payment.id}>
                     <div className="payment-icon">KSh</div>
-                    <div className="payment-info"><strong>{payment.transaction_id || payment.account_reference || 'Payment'}</strong><span>M-Pesa Paybill • {payment.account_reference || accountReference}</span></div>
+                    <div className="payment-info"><strong>{payment.transaction_id || payment.account_reference || 'Payment'}</strong><span>M-Pesa Paybill • {payment.account_reference || 'Paybill'}</span></div>
                     <div className="payment-amount"><strong>KSh {payment.amount}</strong><span className={`payment-status ${payment.status}`}>{payment.status}</span></div>
                   </div>
                 ))}
