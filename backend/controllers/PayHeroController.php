@@ -8,8 +8,8 @@ require_once __DIR__ . '/../config/response.php';
 require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use GuzzleHttp\\Client;
-use GuzzleHttp\\Exception\\GuzzleException;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 function payHeroClient(): Client
 {
