@@ -7,7 +7,7 @@ PoolPilot is a software platform for managing pool tables, M-Pesa payments, game
 - Frontend: Next.js + TypeScript
 - Backend: Plain PHP REST API
 - Database: MySQL 8+
-- Payments: Safaricom M-Pesa Daraja C2B Paybill
+- Payments: PayHero offline M-Pesa Paybill collection (manual customer payment; no STK Push)
 - Messaging: MQTT / HiveMQ Cloud
 - Hardware: External ESP32/controller; hardware design is outside this repository
 - Frontend hosting: Vercel-compatible Next.js deployment
@@ -23,20 +23,22 @@ PoolPilot is a software platform for managing pool tables, M-Pesa payments, game
 6. An attendant ends the game manually.
 7. Game duration is recorded for reporting and audit purposes only. There is no automatic time-limit lock.
 8. When a game is ended, the backend queues a lock command and makes the table available again.
-9. QR codes and STK Push are optional future payment methods; they are not part of the primary customer flow.
+9. Payments use PayHero's offline Paybill flow only. The system does not initiate STK Push or require a customer phone number.
 
 ## Customer-to-table flow
 
 Customer
-  │ M-Pesa Pay Bill: Paybill + TABLE03 + Amount
+  │ Request Paybill instructions for a table
   ▼
-Safaricom
-  │ C2B validation / confirmation
+PoolPilot PHP API → PayHero offline Paybill request
+  │ Return PayHero Paybill + account reference + exact amount
+  ▼
+Customer manually pays in M-Pesa (no STK Push)
+  │ PayHero payment callback
   ▼
 PoolPilot PHP API
-  ├── Verify Paybill → organization
-  ├── Verify table reference
-  ├── Verify exact game price
+  ├── Match external reference
+  ├── Verify callback amount and inbound status
   ├── Reject duplicate transaction
   └── Create payment + game atomically
               │
@@ -70,8 +72,8 @@ Authentication and authorization are a required next production layer before exp
 
 Public/system routes:
 - GET /api/health
-- POST /api/mpesa/c2b/validation
-- POST /api/mpesa/c2b/confirmation
+- POST /api/payhero/paybill (authenticated; generates offline Paybill instructions)
+- POST /api/payhero/callback (PayHero payment callback)
 
 Current management routes:
 - GET /api/tables
@@ -90,6 +92,11 @@ Management routes are currently intended for the local/admin application and sho
 3. For a fresh database, run database/schema.sql, then database/seed.sql.
 4. For an existing v0.2 database, back it up and run database/migrations/001_multi_client_paybill.sql once.
 5. Set DEFAULT_ORGANIZATION_ID=1 for local development.
+5. Configure PayHero credentials and account details in backend/.env: PAYHERO_ACCOUNT_ID, PAYHERO_NETWORK_CODE, PAYHERO_MERCHANT_FEE, PAYHERO_PAYBILL_NUMBER, PAYHERO_PAYBILL_PREFIX and PAYHERO_CALLBACK_URL. Use the values provided for your PayHero account; do not copy sample Paybill numbers from documentation.
+6. Set the public HTTPS callback URL to https://your-domain/api/payhero/callback, then register it in PayHero.
+7. Set FRONTEND_URL=http://localhost:3000.
+8. Start the PHP API from backend/.
+9. Start the Next.js application from frontend/.
 6. Set FRONTEND_URL=http://localhost:3000.
 7. Start the PHP API from backend/.
 8. Start the Next.js application from frontend/.
