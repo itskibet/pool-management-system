@@ -60,7 +60,7 @@ CREATE TABLE payments (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   organization_id BIGINT UNSIGNED NOT NULL,
   table_id BIGINT UNSIGNED NOT NULL,
-  payment_method ENUM('paybill','stk_push') NOT NULL DEFAULT 'paybill',
+  payment_method ENUM('paybill') NOT NULL DEFAULT 'paybill',
   phone_number VARCHAR(20) NULL,
   amount DECIMAL(10,2) NOT NULL,
   account_reference VARCHAR(100) NULL,
