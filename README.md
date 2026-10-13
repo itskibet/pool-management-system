@@ -87,19 +87,16 @@ Management routes are currently intended for the local/admin application and sho
 
 ## Local development
 
-1. Copy backend/.env.example to backend/.env.
+1. Copy `backend/.env.example` to `backend/.env`.
 2. Create/import the MySQL database.
-3. For a fresh database, run database/schema.sql, then database/seed.sql.
-4. For an existing v0.2 database, back it up and run database/migrations/001_multi_client_paybill.sql once.
-5. Set DEFAULT_ORGANIZATION_ID=1 for local development.
-5. Configure PayHero credentials and account details in backend/.env: PAYHERO_ACCOUNT_ID, PAYHERO_NETWORK_CODE, PAYHERO_MERCHANT_FEE, PAYHERO_PAYBILL_NUMBER, PAYHERO_PAYBILL_PREFIX and PAYHERO_CALLBACK_URL. Use the values provided for your PayHero account; do not copy sample Paybill numbers from documentation.
-6. Set the public HTTPS callback URL to https://your-domain/api/payhero/callback, then register it in PayHero.
-7. Set FRONTEND_URL=http://localhost:3000.
-8. Start the PHP API from backend/.
-9. Start the Next.js application from frontend/.
-6. Set FRONTEND_URL=http://localhost:3000.
-7. Start the PHP API from backend/.
-8. Start the Next.js application from frontend/.
+3. For a fresh database, run `database/schema.sql`, then `database/seed.sql`.
+4. For an existing database, back it up and apply only the migrations it still needs.
+5. Set `DEFAULT_ORGANIZATION_ID=1` for local development.
+6. Configure `PAYHERO_API_USERNAME`, `PAYHERO_API_PASSWORD`, `PAYHERO_ACCOUNT_ID`, `PAYHERO_NETWORK_CODE`, `PAYHERO_MERCHANT_FEE`, `PAYHERO_PAYBILL_NUMBER`, `PAYHERO_PAYBILL_PREFIX` and `PAYHERO_CALLBACK_URL` in `backend/.env`. Obtain the values from your PayHero account; do not copy sample numbers from documentation.
+7. Set `PAYHERO_CALLBACK_URL` to your public HTTPS callback URL ending in `/api/payhero/callback`, then configure it in PayHero.
+8. Set `FRONTEND_URL=http://localhost:3000`.
+9. Start the PHP API from `backend/`.
+10. Start the Next.js application from `frontend/`.
 
 Do not run the fresh schema against an existing database.
 
