@@ -17,9 +17,9 @@ PoolPilot is a software platform for managing pool tables, M-Pesa payments, game
 
 1. A customer pays for one pool game/session, not for a fixed amount of time.
 2. The customer pays through M-Pesa Lipa na M-Pesa → Pay Bill.
-3. The customer enters the hall's Paybill number, the table reference and the configured game price.
+3. The customer requests a PayHero offline Paybill reference for the table, then pays manually using the Paybill number, generated account reference and configured game price.
 4. The PoolPilot website never asks the customer to type a phone number and never treats a browser click as proof of payment.
-5. Only a server-side verified M-Pesa transaction can create a game and queue an unlock command.
+5. Only a successful PayHero server callback with a matching external reference and amount can create a game and queue an unlock command.
 6. An attendant ends the game manually.
 7. Game duration is recorded for reporting and audit purposes only. There is no automatic time-limit lock.
 8. When a game is ended, the backend queues a lock command and makes the table available again.
@@ -109,4 +109,4 @@ Never commit backend/.env, M-Pesa consumer secrets/passkeys, MQTT passwords or p
 
 ## Production status
 
-The repository currently provides the application foundation and integration contracts. Before a real customer deployment, complete and test authentication and role-based authorization, production M-Pesa Daraja registration and callbacks, C2B payload validation, MQTT broker authentication and publishing, external controller firmware and acknowledgements, HTTPS, monitoring, backups and recovery procedures.
+PayHero's documented offline Paybill collection settles into a PayHero-managed wallet, not automatically into the business's own external Paybill. Confirm the settlement destination, required account settings and fees with PayHero before using real funds. The repository currently provides the application foundation and integration contracts. Before a real customer deployment, complete and test authentication and role-based authorization, production M-Pesa Daraja registration and callbacks, C2B payload validation, MQTT broker authentication and publishing, external controller firmware and acknowledgements, HTTPS, monitoring, backups and recovery procedures.
