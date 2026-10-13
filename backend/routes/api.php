@@ -36,7 +36,7 @@ if($method==='POST'&&preg_match('#^/payments/(\\d+)/confirm$#',$path,$m)){requir
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireAuth();endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
-if($method==='POST'&&$path==='/payhero/stk-push'){requireAuth();initiatePayHeroStkPush();}
+if($method==='POST'&&$path==='/payhero/paybill'){requireAuth();initiatePayHeroPaybill();}
 if($method==='POST'&&$path==='/payhero/callback')payHeroCallback();
 if($method==='POST'&&$path==='/mpesa/c2b/validation')mpesaC2BValidation();
 if($method==='POST'&&$path==='/mpesa/c2b/confirmation')mpesaC2BConfirmation();
