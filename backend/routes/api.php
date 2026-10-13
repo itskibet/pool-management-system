@@ -10,7 +10,6 @@ require_once __DIR__ . '/../controllers/TableController.php';
 require_once __DIR__ . '/../controllers/PaymentController.php';
 require_once __DIR__ . '/../controllers/GameController.php';
 require_once __DIR__ . '/../controllers/PaymentSettingsController.php';
-require_once __DIR__ . '/../controllers/MpesaController.php';
 require_once __DIR__ . '/../controllers/PayHeroController.php';
 require_once __DIR__ . '/../controllers/OrganizationController.php';
 require_once __DIR__ . '/../controllers/BillingController.php';
@@ -31,15 +30,11 @@ if($method==='GET'&&$path==='/tables'){requireAuth();listTables();}
 if($method==='POST'&&$path==='/tables'){requireRoles(['owner','admin']);createTable();}
 if($method==='GET'&&preg_match('#^/tables/(\d+)$#',$path,$m)){requireAuth();getTable((int)$m[1]);}
 if($method==='GET'&&$path==='/payments'){requireAuth();listPayments();}
-if($method==='POST'&&$path==='/payments'){requireAuth();createPendingPayment();}
-if($method==='POST'&&preg_match('#^/payments/(\\d+)/confirm$#',$path,$m)){requireAuth();confirmPayment((int)$m[1]);}
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireAuth();endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
 if($method==='POST'&&$path==='/payhero/paybill'){requireAuth();initiatePayHeroPaybill();}
 if($method==='POST'&&$path==='/payhero/callback')payHeroCallback();
-if($method==='POST'&&$path==='/mpesa/c2b/validation')mpesaC2BValidation();
-if($method==='POST'&&$path==='/mpesa/c2b/confirmation')mpesaC2BConfirmation();
 if($method==='GET'&&$path==='/organizations')listOrganizations();
 if($method==='POST'&&$path==='/organizations')createOrganization();
 if($method==='GET'&&preg_match('#^/organizations/(\\d+)$#',$path,$m))getOrganizationSummary((int)$m[1]);
