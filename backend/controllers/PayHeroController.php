@@ -149,8 +149,19 @@ function initiatePayHeroPaybill(): never
     }
 }
 
-function payHeroCallback(): never
+function payHeroCallback(string $providedSecret): never
 {
+    // PayHero's documented callback payload does not describe a signed webhook
+    // header. Authenticate this endpoint with a high-entropy secret in the
+    // callback URL path until PayHero supports a verifiable signature/header.
+    $expectedSecret = trim((string) env('PAYHERO_CALLBACK_SECRET', ''));
+    if ($expectedSecret === '' || strlen($expectedSecret) < 43) {
+        jsonResponse(['error' => 'PayHero callback authentication is not configured'], 503);
+    }
+    if (!hash_equals($expectedSecret, $providedSecret)) {
+        jsonResponse(['error' => 'Unauthorized callback'], 401);
+    }
+
     $input = readJsonInput();
     if ($input === []) jsonResponse(['error' => 'Invalid PayHero callback payload'], 400);
 
@@ -158,11 +169,19 @@ function payHeroCallback(): never
     $status = strtolower(trim((string) ($input['status'] ?? '')));
     $transactionType = strtolower(trim((string) ($input['transaction_type'] ?? 'inbound_payment')));
     $amount = is_numeric($input['amount'] ?? null) ? (float) $input['amount'] : 0.0;
-    if ($externalReference === '' || $status === '' || $amount <= 0) {
-        jsonResponse(['error' => 'PayHero callback is missing required fields'], 422);
+    if ($externalReference === '' || !in_array($status, ['success', 'failed'], true) || $amount <= 0) {
+        jsonResponse(['error' => 'PayHero callback is missing required or valid fields'], 422);
     }
     if ($transactionType !== 'inbound_payment') {
         jsonResponse(['error' => 'Callback is not an inbound payment'], 422);
+    }
+    if (isset($input['currency']) && strtoupper(trim((string) $input['currency'])) !== 'KES') {
+        jsonResponse(['error' => 'Callback currency does not match KES'], 422);
+    }
+    if (array_key_exists('success', $input)) {
+        if (!is_bool($input['success']) || (($status === 'success') !== $input['success'])) {
+            jsonResponse(['error' => 'Callback status and success fields do not match'], 422);
+        }
     }
 
     $pdo = db();
