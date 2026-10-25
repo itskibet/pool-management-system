@@ -34,7 +34,7 @@ if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireAuth();endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
 if($method==='POST'&&$path==='/payhero/paybill'){requireAuth();initiatePayHeroPaybill();}
-if($method==='POST'&&$path==='/payhero/callback')payHeroCallback();
+if($method==='POST'&&str_starts_with($path,'/payhero/callback/')){ $token=substr($path,strlen('/payhero/callback/')); if(preg_match('/^[A-Za-z0-9_-]{43,128}$/D',$token))payHeroCallback($token); }
 if($method==='GET'&&$path==='/organizations')listOrganizations();
 if($method==='POST'&&$path==='/organizations')createOrganization();
 if($method==='GET'&&preg_match('#^/organizations/(\\d+)$#',$path,$m))getOrganizationSummary((int)$m[1]);
