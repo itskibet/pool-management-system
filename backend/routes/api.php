@@ -31,6 +31,8 @@ if($method==='GET'&&$path==='/tables'){requireAuth();listTables();}
 if($method==='POST'&&$path==='/tables'){requireRoles(['owner','admin']);createTable();}
 if($method==='GET'&&preg_match('#^/tables/(\d+)$#',$path,$m)){requireAuth();getTable((int)$m[1]);}
 if($method==='GET'&&$path==='/payments'){requireAuth();listPayments();}
+if($method==='POST'&&$path==='/payments'){requireRoles(['owner','admin','attendant']);createPendingPayment();}
+if($method==='POST'&&preg_match('#^/payments/(\\d+)/confirm$#',$path,$m)){requireRoles(['owner','admin']);confirmPayment((int)$m[1]);}
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireRoles(['owner','admin','attendant']);endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
