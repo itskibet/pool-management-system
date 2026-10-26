@@ -29,7 +29,8 @@ $isProviderCallback = str_contains($requestPath, '/payhero/callback/')
     || str_contains($requestPath, '/mpesa/c2b/');
 if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !$isProviderCallback) {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    if ($origin !== '' && !hash_equals(rtrim($allowedOrigin, '/'), rtrim($origin, '/'))) {
+    $production = strtolower((string)env('APP_ENV', 'local')) === 'production';
+    if (($origin === '' && $production) || ($origin !== '' && !hash_equals(rtrim($allowedOrigin, '/'), rtrim($origin, '/')))) {
         http_response_code(403);
         echo json_encode(['error' => 'Request origin is not allowed']);
         exit;
