@@ -204,7 +204,7 @@ export default function Home() {
             <Link className="nav-item" href="/organizations"><span className="nav-icon">⌂</span><span>Clients</span></Link>
             <Link className="nav-item" href="/billing"><span className="nav-icon">KSh</span><span>Billing</span></Link>
           </>}
-          <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/login"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
+          <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
         </nav>
         <div className="sidebar-card">
           <span className="sidebar-card-kicker">QUICK STATUS</span>
