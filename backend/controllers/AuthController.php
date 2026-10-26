@@ -135,15 +135,7 @@ function bootstrapOwner(): never
         throw $e;
     }
 }
-    $name=trim((string)($input['name']??'')); $email=strtolower(trim((string)($input['email']??''))); $password=(string)($input['password']??'');
-    $org=max(1,(int)($input['organization_id']??env('DEFAULT_ORGANIZATION_ID','1')));
-    if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($password)<8) jsonResponse(['error'=>'Name, valid email and a password of at least 8 characters are required'],422);
-    $check=$pdo->prepare('SELECT id FROM organizations WHERE id=?'); $check->execute([$org]);
-    if(!$check->fetchColumn()) jsonResponse(['error'=>'Organization not found'],422);
-    try{$stmt=$pdo->prepare('INSERT INTO users (organization_id,name,email,password_hash,role,active,is_system_admin) VALUES (?,?,?,?, "owner",1,1)');$stmt->execute([$org,$name,$email,password_hash($password,PASSWORD_DEFAULT)]);}
-    catch(PDOException $e){if((int)($e->errorInfo[1]??0)===1062)jsonResponse(['error'=>'An account with that email already exists'],409);throw $e;}
-    jsonResponse(['message'=>'Owner account created. You can now log in.'],201);
-}
+
 
 function updateOwnProfile(): never
 {
