@@ -196,6 +196,7 @@ function updateUser(int $id): never
     if((int)$target['is_system_admin']&&!(int)$actor['is_system_admin'])jsonResponse(['error'=>'Only a system administrator can modify a system administrator account'],403);
     if($target['role']==='owner'&&$actor['role']!=='owner')jsonResponse(['error'=>'Only the owner can modify an owner account'],403);
     if($id===(int)$actor['id']&&array_key_exists('active',$input)&&!(bool)$input['active'])jsonResponse(['error'=>'You cannot deactivate your own account'],422);
+    if($id===(int)$actor['id']&&isset($input['password'])&&(string)$input['password']!=='')jsonResponse(['error'=>'Use Account Settings to change your own password, where your current password is verified'],403);
     $sets=[];$values=[];
     if(isset($input['name'])&&trim((string)$input['name'])!==''){$sets[]='name=?';$values[]=trim((string)$input['name']);}
     if(isset($input['role'])){$role=(string)$input['role'];$allowed=$actor['role']==='owner'?['owner','admin','attendant','accountant']:['admin','attendant','accountant'];if(!in_array($role,$allowed,true))jsonResponse(['error'=>'Invalid role'],422);if($target['role']==='owner'&&$role!=='owner')jsonResponse(['error'=>'The owner account cannot be demoted'],403);$sets[]='role=?';$values[]=$role;}
