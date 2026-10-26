@@ -202,6 +202,10 @@ function payHeroCallback(string $providedSecret): never
             $pdo->commit();
             jsonResponse(['success' => true, 'message' => 'Payment already processed']);
         }
+        if ($payment['status'] !== 'pending') {
+            $pdo->rollBack();
+            jsonResponse(['error' => 'Payment is not pending and cannot be changed by this callback'], 409);
+        }
 
         $transactionId = trim((string) ($input['transaction_id'] ?? ''));
         $providerReference = trim((string) ($input['provider_reference'] ?? ''));
