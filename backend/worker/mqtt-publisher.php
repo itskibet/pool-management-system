@@ -39,6 +39,13 @@ if ($clientId === '') {
 
 $pdo = db();
 
+// Prevent two scheduled workers from selecting and publishing the same queued command.
+$workerLock = (int)$pdo->query("SELECT GET_LOCK('poolpilot_mqtt_publisher', 0)")->fetchColumn();
+if ($workerLock !== 1) {
+    echo '[MQTT WORKER] Another publisher is already running.' . PHP_EOL;
+    exit(0);
+}
+
 $stmt = $pdo->prepare(
     'SELECT id, organization_id, table_id, payment_id, game_id, topic, command
      FROM mqtt_commands
