@@ -11,7 +11,8 @@ function listDailyClosings(): never
 function closeDailyBusiness(): never
 {
     $actor=requireRoles(['owner','admin']);$input=json_decode(file_get_contents('php://input'),true)?:[];$date=trim((string)($input['business_date']??date('Y-m-d')));
-    if(!preg_match('/^\d{4}-\d{2}-\d{2}$/',$date))jsonResponse(['error'=>'business_date must use YYYY-MM-DD'],422);
+    $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !$parsedDate || $parsedDate->format('Y-m-d') !== $date) jsonResponse(['error'=>'business_date must be a valid date in YYYY-MM-DD format'],422);
     $today=(new DateTimeImmutable('now',new DateTimeZone('Africa/Nairobi')))->format('Y-m-d');
     if($date>$today)jsonResponse(['error'=>'You cannot close a future business date'],422);
     $org=(int)$actor['organization_id'];$pdo=db();$pdo->beginTransaction();
