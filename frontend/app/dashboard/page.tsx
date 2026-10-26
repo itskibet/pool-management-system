@@ -198,6 +198,7 @@ export default function Home() {
           <a className="nav-item" href="#tables"><span className="nav-icon">▦</span><span>Tables</span></a>
           <Link className="nav-item" href="/payments"><span className="nav-icon">↗</span><span>Payments</span></Link>
           <Link className="nav-item" href="/games"><span className="nav-icon">◷</span><span>Games</span></Link>
+          <Link className="nav-item" href="/account"><span className="nav-icon">⚙</span><span>My account</span></Link>
           <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
           {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users"><span className="nav-icon">♙</span><span>Users</span></Link>}
           {(currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <>
