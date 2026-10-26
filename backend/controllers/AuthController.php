@@ -110,6 +110,9 @@ function setupStatus(): never
 function bootstrapOwner(): never
 {
     $input=json_decode(file_get_contents('php://input'),true)?:[];
+    $setupIp = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $setupBucket = hash('sha256', 'bootstrap-ip|' . $setupIp);
+    if (incrementAuthRateLimit($setupBucket) > 10) { header('Retry-After: 900'); jsonResponse(['error'=>'Too many setup attempts. Wait 15 minutes before trying again.'],429); }
     $key=(string)($input['setup_key']??''); $expected=(string)env('BOOTSTRAP_KEY','');
     if($expected===''||!hash_equals($expected,$key)) jsonResponse(['error'=>'Invalid setup key'],403);
     $name=trim((string)($input['name']??'')); $email=strtolower(trim((string)($input['email']??''))); $password=(string)($input['password']??'');
