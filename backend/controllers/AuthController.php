@@ -222,7 +222,7 @@ function createUser(): never
     $actor=requireRoles(['owner','admin']); $input=json_decode(file_get_contents('php://input'),true)?:[];
     $name=trim((string)($input['name']??''));$email=strtolower(trim((string)($input['email']??'')));$password=(string)($input['password']??'');$role=(string)($input['role']??'attendant');
     $allowed=$actor['role']==='owner'?['owner','admin','attendant','accountant']:['admin','attendant','accountant'];
-    if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($password)<8||!in_array($role,$allowed,true))jsonResponse(['error'=>'Provide a name, valid email, password of at least 8 characters, and an allowed role'],422);
+    if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($password)<12||!in_array($role,$allowed,true))jsonResponse(['error'=>'Provide a name, valid email, password of at least 12 characters, and an allowed role'],422);
     try{$stmt=db()->prepare('INSERT INTO users (organization_id,name,email,password_hash,role,active,is_system_admin) VALUES (?,?,?,?,?,1,0)');$stmt->execute([(int)$actor['organization_id'],$name,$email,password_hash($password,PASSWORD_DEFAULT),$role]);}
     catch(PDOException $e){if((int)($e->errorInfo[1]??0)===1062)jsonResponse(['error'=>'An account with that email already exists'],409);throw $e;}
     jsonResponse(['message'=>'User created'],201);
@@ -241,7 +241,7 @@ function updateUser(int $id): never
     if(isset($input['name'])&&trim((string)$input['name'])!==''){$sets[]='name=?';$values[]=trim((string)$input['name']);}
     if(isset($input['role'])){$role=(string)$input['role'];$allowed=$actor['role']==='owner'?['owner','admin','attendant','accountant']:['admin','attendant','accountant'];if(!in_array($role,$allowed,true))jsonResponse(['error'=>'Invalid role'],422);if($target['role']==='owner'&&$role!=='owner')jsonResponse(['error'=>'The owner account cannot be demoted'],403);$sets[]='role=?';$values[]=$role;}
     if(array_key_exists('active',$input)){$active=(bool)$input['active'];if((int)$target['is_system_admin']&&!$active)jsonResponse(['error'=>'A system administrator cannot be deactivated'],422);$sets[]='active=?';$values[]=(int)$active;}
-    if(isset($input['password'])&&(string)$input['password']!==''){if(strlen((string)$input['password'])<8)jsonResponse(['error'=>'Password must be at least 8 characters'],422);$sets[]='password_hash=?';$values[]=password_hash((string)$input['password'],PASSWORD_DEFAULT);}
+    if(isset($input['password'])&&(string)$input['password']!==''){if(strlen((string)$input['password'])<12)jsonResponse(['error'=>'Password must be at least 12 characters'],422);$sets[]='password_hash=?';$values[]=password_hash((string)$input['password'],PASSWORD_DEFAULT);}
     if(!$sets)jsonResponse(['error'=>'No changes supplied'],422);
     $values[]=$id;$values[]=(int)$actor['organization_id'];db()->prepare('UPDATE users SET '.implode(', ',$sets).' WHERE id=? AND organization_id=?')->execute($values);
     jsonResponse(['message'=>'User updated']);
