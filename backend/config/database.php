@@ -19,6 +19,11 @@ function db(): PDO
     $database = env('DB_DATABASE', 'pool_management');
     $username = env('DB_USERNAME', 'root');
     $password = env('DB_PASSWORD', '');
+    if (strtolower((string)env('APP_ENV', 'local')) === 'production') {
+        if ($username === 'root' || $password === '') {
+            throw new RuntimeException('Production database credentials must use a dedicated non-root account and a non-empty password.');
+        }
+    }
 
     $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $database);
 
