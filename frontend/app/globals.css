@@ -123,3 +123,10 @@
 @media(max-width:900px){.welcome-hero{grid-template-columns:minmax(0,1fr) minmax(300px,.8fr);gap:22px}.welcome-art-wrap{min-height:410px}.welcome-copy h1{font-size:clamp(45px,6.4vw,64px)}.welcome-highlights{gap:14px}.welcome-art-wrap:before{width:260px;height:260px}.welcome-art-wrap:after{width:320px;height:320px}}
 @media(max-width:680px){.welcome-page{padding:0 18px}.welcome-nav{height:76px}.welcome-brand-mark{width:38px;height:38px}.welcome-brand strong{font-size:16px}.welcome-nav-login{padding:10px 12px;gap:8px}.welcome-hero{grid-template-columns:1fr;padding:38px 0 26px;gap:26px}.welcome-copy{padding:0}.welcome-copy h1{font-size:clamp(48px,12vw,68px);margin:21px 0 16px}.welcome-description{font-size:14px;line-height:1.7}.welcome-actions{gap:13px;margin-top:23px}.welcome-primary{padding:15px 16px;gap:15px}.welcome-highlights{margin-top:27px;padding-top:17px;gap:15px}.welcome-art-wrap{min-height:340px;border-radius:25px}.welcome-mascot{width:min(100%,350px);margin-top:-10px}.welcome-art-wrap:before{width:220px;height:220px}.welcome-art-wrap:after{width:280px;height:280px}.welcome-art-badge{top:14px;left:14px;font-size:7px;padding:8px}.welcome-art-caption{left:12px;right:12px;bottom:12px;padding:11px}.welcome-art-caption strong{font-size:10px}.welcome-art-caption small{font-size:8px}.welcome-footer{font-size:8px;min-height:48px}}
 @media(max-width:360px){.welcome-page{padding:0 12px}.welcome-copy h1{font-size:45px}.welcome-secure{font-size:9px}.welcome-highlights{gap:10px}.welcome-highlights>div{gap:7px}.welcome-art-wrap{min-height:300px}.welcome-art-caption{gap:8px}.welcome-art-caption small{max-width:210px}}
+
+
+/* Self-service account settings */
+.account-layout{align-items:start}
+.account-help{font-size:10px;line-height:1.65;color:#7b8798;margin:14px 0 4px}
+.account-success{padding:10px 12px;border-radius:9px;background:#effaf4;border:1px solid #d6f0e1;color:#16734e;font-size:9px;line-height:1.55}
+@media(max-width:760px){.account-layout{grid-template-columns:1fr}}
