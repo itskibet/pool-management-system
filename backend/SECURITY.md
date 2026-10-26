@@ -20,7 +20,10 @@ The route intentionally rejects the old public `/api/payhero/callback` path. Upd
 - Use a dedicated, least-privilege MySQL account. Do not use `root` for the deployed application.
 - Keep `.env`, API credentials, callback secret, database passwords, and MQTT credentials out of Git and frontend variables.
 - Serve the API only over HTTPS. Configure the web server/reverse proxy to pass HTTPS state correctly; do not trust arbitrary client-supplied forwarded-protocol headers.
-- Add rate limiting to login and setup endpoints, CSRF protection or strict same-origin checks for cookie-authenticated mutations, and an atomic one-time bootstrap mechanism before public deployment.
+- Apply `database/migrations/20261026_create_auth_rate_limits.sql` before deploying this revision to an existing database; fresh databases created from `database/schema.sql` already include the table. Login attempts are limited by IP and IP+account buckets (15-minute windows). Monitor and periodically prune stale `auth_rate_limits` rows.
+- Browser state-changing requests are checked against `FRONTEND_URL` when an `Origin` header is present. Keep the frontend origin exact and HTTPS in production; retain `SameSite=Lax`, `HttpOnly`, and production `Secure` session cookies. Test this behind the real reverse proxy.
+- Initial-owner creation uses a MySQL advisory lock and rejects passwords shorter than 12 characters. Set a unique, high-entropy `BOOTSTRAP_KEY`, use it only during setup, then remove/rotate it after the owner account exists.
+- Use a dedicated, least-privilege MySQL account. Do not use `root` for the deployed application.
 - Ensure all tenant-scoped queries include the authenticated user's organization. Restrict game-ending, user-management, organization, and billing actions by role.
 - Run the PHP syntax checks and full payment-to-game-to-MQTT tests after merging. Test with PayHero's real callback format in a staging environment before processing live payments.
-- Operate the MQTT publisher under a supervisor or reliable scheduler, prevent concurrent workers from claiming the same queued command, and make device command handling idempotent.
+- Operate the MQTT publisher under a supervisor or reliable scheduler. The worker takes a MySQL advisory lock to prevent concurrent publisher processes; still make device command handling idempotent because network delivery and process failure can create uncertainty about whether a command reached a device.
