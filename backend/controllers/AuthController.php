@@ -97,6 +97,79 @@ function bootstrapOwner(): never
     jsonResponse(['message'=>'Owner account created. You can now log in.'],201);
 }
 
+function updateOwnProfile(): never
+{
+    $actor = requireAuth();
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) jsonResponse(['error'=>'Provide valid JSON'], 400);
+
+    $currentPassword = (string)($input['current_password'] ?? '');
+    if ($currentPassword === '') jsonResponse(['error'=>'Enter your current password to confirm these changes'], 422);
+
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT id, name, email, password_hash FROM users WHERE id = ? AND active = 1 LIMIT 1');
+    $stmt->execute([(int)$actor['id']]);
+    $stored = $stmt->fetch();
+    if (!$stored || !password_verify($currentPassword, (string)$stored['password_hash'])) {
+        jsonResponse(['error'=>'Your current password is incorrect'], 403);
+    }
+
+    $sets = [];
+    $values = [];
+    $profileChanged = false;
+
+    if (array_key_exists('name', $input)) {
+        $name = trim((string)$input['name']);
+        if ($name === '' || mb_strlen($name) > 120) jsonResponse(['error'=>'Name must be between 1 and 120 characters'], 422);
+        $sets[] = 'name = ?';
+        $values[] = $name;
+        $profileChanged = true;
+    }
+
+    if (array_key_exists('email', $input)) {
+        $email = strtolower(trim((string)$input['email']));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 190) {
+            jsonResponse(['error'=>'Enter a valid login email address (maximum 190 characters)'], 422);
+        }
+        $check = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1');
+        $check->execute([$email, (int)$actor['id']]);
+        if ($check->fetchColumn()) jsonResponse(['error'=>'That login email is already in use'], 409);
+        $sets[] = 'email = ?';
+        $values[] = $email;
+        $profileChanged = true;
+    }
+
+    $newPassword = (string)($input['new_password'] ?? '');
+    $confirmPassword = (string)($input['confirm_new_password'] ?? '');
+    if ($newPassword !== '' || $confirmPassword !== '') {
+        if (strlen($newPassword) < 12) jsonResponse(['error'=>'New password must be at least 12 characters'], 422);
+        if ($newPassword !== $confirmPassword) jsonResponse(['error'=>'New password and confirmation do not match'], 422);
+        if (password_verify($newPassword, (string)$stored['password_hash'])) {
+            jsonResponse(['error'=>'Choose a password different from your current password'], 422);
+        }
+        $sets[] = 'password_hash = ?';
+        $values[] = password_hash($newPassword, PASSWORD_DEFAULT);
+    }
+
+    if (!$sets) jsonResponse(['error'=>'No profile changes were supplied'], 422);
+
+    $values[] = (int)$actor['id'];
+    try {
+        $update = $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ? AND active = 1');
+        $update->execute($values);
+    } catch (PDOException $e) {
+        if ((int)($e->errorInfo[1] ?? 0) === 1062) {
+            jsonResponse(['error'=>'That login email is already in use'], 409);
+        }
+        throw $e;
+    }
+
+    session_regenerate_id(true);
+    $updated = $pdo->prepare('SELECT id, organization_id, name, email, role, active, is_system_admin, created_at, updated_at FROM users WHERE id = ? LIMIT 1');
+    $updated->execute([(int)$actor['id']]);
+    jsonResponse(['message'=>'Account settings updated successfully', 'data'=>$updated->fetch()]);
+}
+
 function listUsers(): never
 {
     $actor=requireRoles(['owner','admin']);
