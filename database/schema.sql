@@ -149,3 +149,11 @@ CREATE INDEX idx_daily_closings_org_date ON daily_closings(organization_id, busi
 CREATE INDEX idx_payments_org_status_created ON payments(organization_id, status, created_at);
 CREATE INDEX idx_games_org_status_started ON games(organization_id, status, started_at);
 CREATE INDEX idx_commands_org_status_created ON mqtt_commands(organization_id, status, created_at);
+
+CREATE TABLE auth_rate_limits (
+  bucket_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+  window_started_at DATETIME NOT NULL,
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_auth_rate_limits_updated (updated_at)
+) ENGINE=InnoDB;
