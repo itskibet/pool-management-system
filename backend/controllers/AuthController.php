@@ -53,6 +53,21 @@ function requireSystemAdmin(): array
     return $user;
 }
 
+function incrementAuthRateLimit(string $bucketKey): int
+{
+    $pdo = db();
+    $stmt = $pdo->prepare('INSERT INTO auth_rate_limits (bucket_key, window_started_at, attempts) VALUES (?, NOW(), 1) ON DUPLICATE KEY UPDATE attempts = IF(window_started_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE), 1, attempts + 1), window_started_at = IF(window_started_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE), NOW(), window_started_at)');
+    $stmt->execute([$bucketKey]);
+    $read = $pdo->prepare('SELECT attempts FROM auth_rate_limits WHERE bucket_key = ?');
+    $read->execute([$bucketKey]);
+    return (int)$read->fetchColumn();
+}
+
+function clearAuthRateLimit(string $bucketKey): void
+{
+    $stmt = db()->prepare('DELETE FROM auth_rate_limits WHERE bucket_key = ?');
+    $stmt->execute([$bucketKey]);
+}
 function login(): never
 {
     startAuthSession();
@@ -60,9 +75,17 @@ function login(): never
     $email=strtolower(trim((string)($input['email']??'')));
     $password=(string)($input['password']??'');
     if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$password==='') jsonResponse(['error'=>'Enter a valid email and password'],422);
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $ipBucket = hash('sha256', 'login-ip|' . $ip);
+    $accountBucket = hash('sha256', 'login-account|' . $ip . '|' . $email);
+    $ipAttempts = incrementAuthRateLimit($ipBucket);
+    $accountAttempts = incrementAuthRateLimit($accountBucket);
+    if ($ipAttempts > 30 || $accountAttempts > 10) { header('Retry-After: 900'); jsonResponse(['error'=>'Too many login attempts. Wait 15 minutes before trying again.'],429); }
     $stmt=db()->prepare('SELECT id, organization_id, name, email, password_hash, role, active, is_system_admin, created_at, updated_at FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]); $user=$stmt->fetch();
     if(!$user||!(int)$user['active']||!password_verify($password,$user['password_hash'])){usleep(250000);jsonResponse(['error'=>'Invalid email or password'],401);}
+    clearAuthRateLimit($ipBucket);
+    clearAuthRateLimit($accountBucket);
     session_regenerate_id(true);
     $_SESSION['user_id']=(int)$user['id'];
     $_SESSION['organization_id']=$user['organization_id']!==null?(int)$user['organization_id']:null;
