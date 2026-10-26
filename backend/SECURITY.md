@@ -14,6 +14,13 @@ The PayHero callback endpoint must not process payment events unless the URL tok
 
 The route intentionally rejects the old public `/api/payhero/callback` path. Update `PAYHERO_CALLBACK_URL` before enabling this code in any environment that receives real payments.
 
+## Existing Safaricom Daraja C2B integration boundary
+
+- This repository currently does not register the legacy `MpesaController.php` validation/confirmation functions in `backend/routes/api.php`. The active provider path in this branch is the token-protected PayHero offline Paybill flow.
+- Do not change the existing live Daraja C2B validation/confirmation URLs or point them directly at this app as part of deployment. The existing integration must remain untouched until a shared, authenticated dispatcher is designed and tested with the business's current system.
+- Before production payments, confirm which callback provider will confirm PoolPilot payments. If direct Daraja C2B is required, implement a dispatcher that preserves the existing system's callback behavior and routes transactions using a stable account-reference prefix or other verified discriminator. Test both systems in staging before updating any live Daraja registration.
+- Never treat an unverified client-submitted M-Pesa receipt as proof of payment. Only trusted provider callbacks or a verified reconciliation process may confirm a payment and queue an unlock.
+
 ## Deployment security checklist
 
 - Run a currently patched PHP release. For the PHP 8.4 branch, install at least PHP 8.4.27 as of 2026-10-25; test compatibility before choosing PHP 8.5.
