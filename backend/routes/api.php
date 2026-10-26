@@ -23,6 +23,7 @@ if($method==='POST'&&$path==='/auth/bootstrap')bootstrapOwner();
 if($method==='POST'&&$path==='/auth/login')login();
 if($method==='POST'&&$path==='/auth/logout')logout();
 if($method==='GET'&&$path==='/auth/me')me();
+if($method==='PUT'&&$path==='/auth/profile')updateOwnProfile();
 if($method==='GET'&&$path==='/users')listUsers();
 if($method==='POST'&&$path==='/users')createUser();
 if($method==='PUT'&&preg_match('#^/users/(\d+)$#',$path,$m))updateUser((int)$m[1]);
