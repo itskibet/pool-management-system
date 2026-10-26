@@ -36,7 +36,7 @@ if($method==='POST'&&preg_match('#^/payments/(\\d+)/confirm$#',$path,$m)){requir
 if($method==='GET'&&$path==='/games'){requireAuth();listGames();}
 if($method==='POST'&&preg_match('#^/games/(\d+)/end$#',$path,$m)){requireRoles(['owner','admin','attendant']);endGame((int)$m[1]);}
 if($method==='GET'&&$path==='/payment-settings'){requireAuth();getPaymentSettings();}
-if($method==='POST'&&$path==='/payhero/paybill'){requireAuth();initiatePayHeroPaybill();}
+if($method==='POST'&&$path==='/payhero/paybill'){requireRoles(['owner','admin','attendant']);initiatePayHeroPaybill();}
 if($method==='POST'&&str_starts_with($path,'/payhero/callback/')){ $token=substr($path,strlen('/payhero/callback/')); if(preg_match('/^[A-Za-z0-9_-]{43,128}$/D',$token))payHeroCallback($token); }
 if($method==='GET'&&$path==='/organizations')listOrganizations();
 if($method==='POST'&&$path==='/organizations')createOrganization();
