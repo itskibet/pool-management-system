@@ -67,6 +67,7 @@ export default function Home() {
   const [apiHealthy, setApiHealthy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const loadDashboard = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -187,26 +188,40 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <aside className="sidebar"> 
         <div className="brand">
           <div className="brand-mark"><span>8</span></div>
           <div><strong>PoolPilot</strong><span>Operations</span></div>
         </div>
-        <div className="nav-label">MAIN MENU</div>
-        <nav>
-          <Link className="nav-item active" href="/dashboard"><span className="nav-icon">⌂</span><span>Overview</span></Link>
-          <a className="nav-item" href="#tables"><span className="nav-icon">▦</span><span>Tables</span></a>
-          <Link className="nav-item" href="/payments"><span className="nav-icon">↗</span><span>Payments</span></Link>
-          <Link className="nav-item" href="/games"><span className="nav-icon">◷</span><span>Games</span></Link>
-          <Link className="nav-item" href="/account"><span className="nav-icon">⚙</span><span>My account</span></Link>
-          <a className="nav-item" href="#health"><span className="nav-icon">▥</span><span>System</span></a>
-          {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users"><span className="nav-icon">♙</span><span>Users</span></Link>}
+       <div className="nav-label">MAIN MENU</div>
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          aria-expanded={mobileNavOpen}
+          aria-controls="dashboard-navigation"
+          onClick={() => setMobileNavOpen((open) => !open)}
+        >
+          <span>☰ Menu</span>
+          <span>{mobileNavOpen ? '▲' : '▼'}</span>
+        </button>
+        <nav
+          id="dashboard-navigation"
+          className={mobileNavOpen ? 'mobile-nav-open' : ''}
+        >
+          <Link className="nav-item active" href="/dashboard" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">⌂</span><span>Overview</span></Link>
+          <a className="nav-item" href="#tables" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">▦</span><span>Tables</span></a>
+          <Link className="nav-item" href="/payments" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">↗</span><span>Payments</span></Link>
+          <Link className="nav-item" href="/games" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">◷</span><span>Games</span></Link>
+          <Link className="nav-item" href="/account" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">⚙</span><span>My account</span></Link>
+          <a className="nav-item" href="#health" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">▥</span><span>System</span></a>
+          {(currentUser?.role === "owner" || currentUser?.role === "admin") && <Link className="nav-item" href="/users" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">♙</span><span>Users</span></Link>}
           {(currentUser?.is_system_admin === 1 || currentUser?.is_system_admin === true) && <>
-            <Link className="nav-item" href="/organizations"><span className="nav-icon">⌂</span><span>Clients</span></Link>
-            <Link className="nav-item" href="/billing"><span className="nav-icon">KSh</span><span>Billing</span></Link>
+            <Link className="nav-item" href="/organizations" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">⌂</span><span>Clients</span></Link>
+            <Link className="nav-item" href="/billing" onClick={() => setMobileNavOpen(false)}><span className="nav-icon">KSh</span><span>Billing</span></Link>
           </>}
-          <button className="nav-item" onClick={async () => { const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
+          <button className="nav-item" onClick={async () => { setMobileNavOpen(false); const apiUrl = process.env.NEXT_PUBLIC_API_URL; if (apiUrl) await fetch(`${apiUrl}/auth/logout`, { method: "POST", credentials: "include" }); router.replace("/"); }}><span className="nav-icon">↪</span><span>Sign out</span></button>
         </nav>
+
         <div className="sidebar-card">
           <span className="sidebar-card-kicker">QUICK STATUS</span>
           <strong>{available} tables ready</strong>
