@@ -17,7 +17,7 @@ function createOrganization(): never
     $ownerName=trim((string)($input['owner_name']??''));$ownerEmail=strtolower(trim((string)($input['owner_email']??'')));$ownerPassword=(string)($input['owner_password']??'');
     if($name===''||!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/',$slug))jsonResponse(['error'=>'Provide an organization name and a valid slug'],422);
     if($paybill===''||!preg_match('/^[0-9A-Za-z_-]{3,30}$/',$paybill))jsonResponse(['error'=>'Provide a valid Paybill number'],422);
-    if($prefix===''||$ownerName===''||!filter_var($ownerEmail,FILTER_VALIDATE_EMAIL)||strlen($ownerPassword)<8)jsonResponse(['error'=>'Provide Paybill, client owner details, and a password of at least 8 characters'],422);
+    if($prefix===''||strlen($prefix)>50||$ownerName===''||strlen($ownerName)>480||!filter_var($ownerEmail,FILTER_VALIDATE_EMAIL)||strlen($ownerEmail)>190||strlen($ownerPassword)<12)jsonResponse(['error'=>'Provide valid owner details, a Paybill, and a password of at least 12 characters'],422);
     $pdo=db();$pdo->beginTransaction();
     try{
         $s=$pdo->prepare('INSERT INTO organizations(name,slug) VALUES(?,?)');$s->execute([$name,$slug]);$orgId=(int)$pdo->lastInsertId();
