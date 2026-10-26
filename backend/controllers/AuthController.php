@@ -8,7 +8,10 @@ require_once __DIR__ . '/../config/env.php';
 function startAuthSession(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) return;
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $production = strtolower((string) env('APP_ENV', 'local')) === 'production';
+    $secure = $production || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     session_name('poolpilot_session');
     session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>$secure,'httponly'=>true,'samesite'=>'Lax']);
     session_start();
@@ -86,7 +89,29 @@ function bootstrapOwner(): never
     $input=json_decode(file_get_contents('php://input'),true)?:[];
     $key=(string)($input['setup_key']??''); $expected=(string)env('BOOTSTRAP_KEY','');
     if($expected===''||!hash_equals($expected,$key)) jsonResponse(['error'=>'Invalid setup key'],403);
-    $pdo=db(); if((int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()>0) jsonResponse(['error'=>'Initial account has already been created'],409);
+    $name=trim((string)($input['name']??'')); $email=strtolower(trim((string)($input['email']??''))); $password=(string)($input['password']??'');
+    $org=max(1,(int)($input['organization_id']??env('DEFAULT_ORGANIZATION_ID','1')));
+    if($name===''||strlen($name)>480||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($email)>190||strlen($password)<12) jsonResponse(['error'=>'Name, valid email and a password of at least 12 characters are required'],422);
+    $pdo=db();
+    $lock = (int)$pdo->query("SELECT GET_LOCK('poolpilot_initial_owner_bootstrap', 5)")->fetchColumn();
+    if ($lock !== 1) jsonResponse(['error'=>'Initial setup is busy; retry shortly'],503);
+    try {
+        if((int)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn()>0) { $pdo->query("SELECT RELEASE_LOCK('poolpilot_initial_owner_bootstrap')"); jsonResponse(['error'=>'Initial account has already been created'],409); }
+        $check=$pdo->prepare('SELECT id FROM organizations WHERE id=?'); $check->execute([$org]);
+        if(!$check->fetchColumn()) { $pdo->query("SELECT RELEASE_LOCK('poolpilot_initial_owner_bootstrap')"); jsonResponse(['error'=>'Organization not found'],422); }
+        $stmt=$pdo->prepare('INSERT INTO users (organization_id,name,email,password_hash,role,active,is_system_admin) VALUES (?,?,?,?, "owner",1,1)');
+        $stmt->execute([$org,$name,$email,password_hash($password,PASSWORD_DEFAULT)]);
+        $pdo->query("SELECT RELEASE_LOCK('poolpilot_initial_owner_bootstrap')");
+        jsonResponse(['message'=>'Owner account created. You can now log in.'],201);
+    } catch (PDOException $e) {
+        $pdo->query("SELECT RELEASE_LOCK('poolpilot_initial_owner_bootstrap')");
+        if((int)($e->errorInfo[1]??0)===1062) jsonResponse(['error'=>'An account with that email already exists'],409);
+        throw $e;
+    } catch (Throwable $e) {
+        $pdo->query("SELECT RELEASE_LOCK('poolpilot_initial_owner_bootstrap')");
+        throw $e;
+    }
+}
     $name=trim((string)($input['name']??'')); $email=strtolower(trim((string)($input['email']??''))); $password=(string)($input['password']??'');
     $org=max(1,(int)($input['organization_id']??env('DEFAULT_ORGANIZATION_ID','1')));
     if($name===''||!filter_var($email,FILTER_VALIDATE_EMAIL)||strlen($password)<8) jsonResponse(['error'=>'Name, valid email and a password of at least 8 characters are required'],422);
