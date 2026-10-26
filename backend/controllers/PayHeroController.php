@@ -203,6 +203,10 @@ function payHeroCallback(string $providedSecret): never
             jsonResponse(['success' => true, 'message' => 'Payment already processed']);
         }
         if ($payment['status'] !== 'pending') {
+            if ($payment['status'] === 'failed' && $status === 'failed') {
+                $pdo->commit();
+                jsonResponse(['success' => true, 'message' => 'Failed payment callback already processed']);
+            }
             $pdo->rollBack();
             jsonResponse(['error' => 'Payment is not pending and cannot be changed by this callback'], 409);
         }
