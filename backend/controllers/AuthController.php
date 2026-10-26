@@ -120,7 +120,7 @@ function updateOwnProfile(): never
 
     if (array_key_exists('name', $input)) {
         $name = trim((string)$input['name']);
-        if ($name === '' || mb_strlen($name) > 120) jsonResponse(['error'=>'Name must be between 1 and 120 characters'], 422);
+        if ($name === '' || strlen($name) > 480) jsonResponse(['error'=>'Name must be between 1 and 120 characters'], 422);
         $sets[] = 'name = ?';
         $values[] = $name;
         $profileChanged = true;
